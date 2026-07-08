@@ -6,8 +6,39 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f8fafc;
-  color: #0f172a;
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.14), transparent 28rem),
+    linear-gradient(135deg, #020617 0%, #0f172a 48%, #111827 100%);
+  color: #e2e8f0;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+@layer base {
+  input,
+  select,
+  textarea {
+    @apply bg-slate-950/70 text-slate-100 placeholder:text-slate-500;
+  }
+
+  input[type="date"] {
+    color-scheme: dark;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    @apply transition-colors duration-200;
+  }
+}
+
+@layer components {
+  .surface {
+    @apply rounded-lg border border-slate-800 bg-slate-900/80 shadow-sm shadow-black/20 backdrop-blur;
+  }
+
+  .muted-panel {
+    @apply rounded-md bg-slate-800/60 text-slate-300;
+  }
+}

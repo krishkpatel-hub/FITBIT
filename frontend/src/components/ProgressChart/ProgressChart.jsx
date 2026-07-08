@@ -1,16 +1,50 @@
-function ProgressChart() {
+const getValue = (item, dataKey) => {
+  if (typeof dataKey === 'function') {
+    return dataKey(item);
+  }
+
+  return item?.[dataKey] ?? 0;
+};
+
+function ProgressChart({
+  title = 'Progress Chart',
+  data = [],
+  dataKey = 'value',
+  labelKey = 'label',
+  colorClass = 'bg-emerald-950/400',
+  emptyMessage = 'No chart data yet.',
+}) {
+  const values = data.map((item) => Number(getValue(item, dataKey)) || 0);
+  const maxValue = Math.max(...values, 0);
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <h3 className="font-semibold text-slate-900">Progress Chart</h3>
-      <div className="mt-4 flex h-40 items-end gap-2">
-        {[35, 55, 42, 75, 68].map((height, index) => (
-          <div
-            key={height + index}
-            className="flex-1 rounded-t bg-emerald-500"
-            style={{ height: `${height}%` }}
-          />
-        ))}
-      </div>
+    <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
+      <h3 className="font-semibold text-slate-100">{title}</h3>
+      {data.length === 0 || maxValue === 0 ? (
+        <p className="mt-4 text-sm text-slate-400">{emptyMessage}</p>
+      ) : (
+        <div className="mt-4">
+          <div className="flex h-40 items-end gap-2">
+            {data.map((item, index) => {
+              const value = values[index];
+              const height = Math.max((value / maxValue) * 100, 6);
+
+              return (
+                <div key={`${getValue(item, labelKey)}-${index}`} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                  <div className="flex h-32 w-full items-end">
+                    <div
+                      className={`w-full rounded-t ${colorClass}`}
+                      style={{ height: `${height}%` }}
+                      title={`${value}`}
+                    />
+                  </div>
+                  <span className="w-full truncate text-center text-xs text-slate-500">{getValue(item, labelKey)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

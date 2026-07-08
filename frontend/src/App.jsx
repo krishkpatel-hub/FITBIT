@@ -6,6 +6,7 @@ import Login from './pages/Login/Login.jsx';
 import Register from './pages/Register/Register.jsx';
 import Dashboard from './pages/Dashboard/Dashboard.jsx';
 import Workout from './pages/Workout/Workout.jsx';
+import StrengthProgram from './pages/StrengthProgram/StrengthProgram.jsx';
 import Nutrition from './pages/Nutrition/Nutrition.jsx';
 import Progress from './pages/Progress/Progress.jsx';
 import Profile from './pages/Profile/Profile.jsx';
@@ -21,6 +22,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/workout" element={<Workout />} />
+          <Route path="/strength-program" element={<StrengthProgram />} />
           <Route path="/nutrition" element={<Nutrition />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/profile" element={<Profile />} />
@@ -32,4 +34,3 @@ function App() {
 }
 
 export default App;
-

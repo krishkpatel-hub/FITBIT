@@ -7,6 +7,10 @@ const trainingMaxHistorySchema = new mongoose.Schema(
       min: 1,
       required: true,
     },
+    liftName: {
+      type: String,
+      enum: ['squat', 'bench', 'deadlift', 'overhead_press'],
+    },
     oneRepMax: {
       type: Number,
       min: 0,
@@ -81,4 +85,3 @@ trainingMaxSchema.index({ user: 1, lastUpdated: -1 });
 const TrainingMax = mongoose.model('TrainingMax', trainingMaxSchema);
 
 export default TrainingMax;
-
