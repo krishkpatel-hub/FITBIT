@@ -1,34 +1,26 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
-
-const links = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/strength-program', label: 'Strength Program' },
-  { to: '/workout', label: 'Workout' },
-  { to: '/nutrition', label: 'Nutrition' },
-  { to: '/progress', label: 'Progress' },
-  { to: '/profile', label: 'Profile' },
-];
+import { appNavigationLinks } from '../../utils/navigation.js';
 
 function Navbar() {
   const { isAuthenticated, logout } = useAuth();
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/85 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-[#292d2a] bg-[#090a09]/95">
       <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link to="/" className="text-xl font-bold tracking-tight text-white">
+        <Link to="/" className="text-lg font-semibold tracking-[-0.02em] text-[#f4f4f0]">
           FitBit-Strength
         </Link>
-        <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+        <div className="flex max-w-full flex-wrap items-center gap-1 text-sm font-medium">
           {isAuthenticated &&
-            links.map((link) => (
+            appNavigationLinks.map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
                 className={({ isActive }) =>
                   isActive
-                    ? 'rounded-md bg-emerald-950/400/10 px-3 py-2 text-emerald-300'
-                    : 'rounded-md px-3 py-2 text-slate-400 hover:bg-slate-900 hover:text-slate-100'
+                    ? 'rounded-lg border border-[#292d2a] bg-[#151816] px-3 py-2 text-[#f4f4f0]'
+                    : 'rounded-lg px-3 py-2 text-[#a5aaa6] hover:bg-[#151816] hover:text-[#f4f4f0]'
                 }
               >
                 {link.label}
@@ -38,16 +30,16 @@ function Navbar() {
             <button
               type="button"
               onClick={logout}
-              className="rounded-md bg-slate-800 px-3 py-2 text-slate-50 hover:bg-slate-900/80"
+              className="rounded-lg border border-[#292d2a] px-3 py-2 text-[#a5aaa6] hover:bg-[#151816] hover:text-[#f4f4f0]"
             >
               Logout
             </button>
           ) : (
             <>
-              <Link to="/login" className="rounded-md px-3 py-2 text-slate-300 hover:bg-slate-900 hover:text-white">
+              <Link to="/login" className="rounded-lg px-3 py-2 text-[#a5aaa6] hover:bg-[#151816] hover:text-white">
                 Login
               </Link>
-              <Link to="/register" className="rounded-md bg-emerald-950/400 px-3 py-2 text-slate-50 hover:bg-emerald-400">
+              <Link to="/register" className="rounded-lg bg-[#d6b94c] px-3 py-2 text-[#090a09] hover:bg-[#e0c762]">
                 Register
               </Link>
             </>

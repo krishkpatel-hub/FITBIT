@@ -10,7 +10,9 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const clearAuthSession = () => {
-    clearAuthSession();
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem(TOKEN_KEY);
   };
 
   useEffect(() => {

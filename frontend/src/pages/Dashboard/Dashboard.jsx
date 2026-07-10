@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import ProgressChart from '../../components/ProgressChart/ProgressChart.jsx';
 import WorkoutCard from '../../components/WorkoutCard/WorkoutCard.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { coachService } from '../../services/coachService.js';
 import { dashboardService } from '../../services/dashboardService.js';
+import { demoService } from '../../services/demoService.js';
 import { trainingMaxService } from '../../services/trainingMaxService.js';
 
 const lifts = [
@@ -30,9 +32,16 @@ const formatDate = (date) => {
   }).format(new Date(date));
 };
 
+const insightPriority = {
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
 function Dashboard() {
   const { logout } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
+  const [coachInsights, setCoachInsights] = useState([]);
   const [trainingMaxes, setTrainingMaxes] = useState([]);
   const [oneRepMaxes, setOneRepMaxes] = useState(emptyOneRepMaxes);
   const [progressionForm, setProgressionForm] = useState({
@@ -43,6 +52,7 @@ function Dashboard() {
   const [programWeek, setProgramWeek] = useState('1');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [seedingDemo, setSeedingDemo] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -87,6 +97,14 @@ function Dashboard() {
     [dashboardData],
   );
 
+  const topCoachInsights = useMemo(
+    () =>
+      [...coachInsights]
+        .sort((a, b) => (insightPriority[b.priority] || 0) - (insightPriority[a.priority] || 0))
+        .slice(0, 3),
+    [coachInsights],
+  );
+
   const handleApiError = async (err, fallbackMessage) => {
     if (err.response?.status === 401) {
       await logout();
@@ -101,11 +119,21 @@ function Dashboard() {
     setError('');
 
     try {
-      const response = await dashboardService.getDashboard();
+      const [response, coachResponse] = await Promise.all([
+        dashboardService.getDashboard(),
+        coachService.getCoachInsights().catch((err) => {
+          if (err.response?.status === 401) {
+            throw err;
+          }
+
+          return { data: [] };
+        }),
+      ]);
       const data = response.data;
       const loadedTrainingMaxes = data.currentTrainingMaxes || [];
 
       setDashboardData(data);
+      setCoachInsights(coachResponse.data || []);
       setTrainingMaxes(loadedTrainingMaxes);
       setOneRepMaxes(
         lifts.reduce((values, lift) => {
@@ -242,67 +270,95 @@ function Dashboard() {
     }
   };
 
+  const seedDemoData = async () => {
+    setError('');
+    setSuccess('');
+    setSeedingDemo(true);
+
+    try {
+      const response = await demoService.seedDemoData();
+      setSuccess(response.data?.message || 'Demo data created for this account.');
+      await loadDashboard();
+    } catch (err) {
+      setError(await handleApiError(err, 'Unable to create demo data.'));
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
+
   const user = dashboardData?.user;
-  const nutritionToday = dashboardData?.nutritionToday;
 
   return (
-    <section className="space-y-6">
+    <section className="page-stack">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">Smart Dashboard</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-50">
+          <p className="eyebrow">Training Overview</p>
+          <h1 className="page-title">
             Welcome{user?.firstName ? `, ${user.firstName}` : ''}
           </h1>
-          <p className="mt-2 text-slate-400">
+          <p className="page-copy">
             {user?.fitnessGoal || 'Set your fitness goal'} · Week {dashboardData?.currentWeek || 1}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-3 text-sm text-slate-400">
-          <span className="font-medium text-slate-50">{trainingMaxes.length}/4</span> lifts configured
+        <div className="flex flex-wrap items-center gap-3">
+          {import.meta.env.DEV && (
+            <button
+              type="button"
+              onClick={seedDemoData}
+              disabled={seedingDemo}
+              className="btn-secondary"
+            >
+              {seedingDemo ? 'Creating demo data...' : 'Seed Demo Data'}
+            </button>
+          )}
+          <div className="border-l border-stone-800 pl-4 text-sm text-stone-400">
+            <span className="block text-2xl font-semibold text-stone-50">{trainingMaxes.length}/4</span>
+            lifts configured
+          </div>
         </div>
       </div>
 
       <Link
         to="/strength-program"
-        className="inline-flex rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-white"
+        className="btn-primary"
       >
         Open Strength Program Setup
       </Link>
 
       {error && (
-        <p role="alert" className="rounded-md bg-red-950/40 px-3 py-2 text-sm text-red-300">
+        <p role="alert" className="status-error">
           {error}
         </p>
       )}
       {success && (
-        <p role="status" className="rounded-md bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">
+        <p role="status" className="status-success">
           {success}
         </p>
       )}
 
       {loading ? (
-        <p className="rounded-lg border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-400">Loading dashboard...</p>
+        <p className="empty-state">Loading dashboard...</p>
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-4">
+          <section className="grid gap-6 md:grid-cols-4">
             {lifts.map((lift) => {
               const trainingMax = trainingMaxByLift[lift.key];
 
               return (
-                <article key={lift.key} className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-                  <h2 className="font-semibold text-slate-50">{lift.label}</h2>
-                  <dl className="mt-3 space-y-2 text-sm text-slate-300">
-                    <div>
-                      <dt className="inline text-slate-500">1RM: </dt>
-                      <dd className="inline font-medium text-slate-100">{trainingMax?.oneRepMax || 0} lb</dd>
+                <article key={lift.key} className="metric-panel">
+                  <h2 className="font-semibold text-stone-50">{lift.label}</h2>
+                  <dl className="mt-3 space-y-3 text-sm text-stone-300">
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-stone-500">1RM</dt>
+                      <dd className="font-medium text-stone-100">{trainingMax?.oneRepMax || 0} lb</dd>
                     </div>
-                    <div>
-                      <dt className="inline text-slate-500">Training Max: </dt>
-                      <dd className="inline font-medium text-slate-100">{trainingMax?.trainingMax || 0} lb</dd>
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-stone-500">Training Max</dt>
+                      <dd className="font-medium text-stone-100">{trainingMax?.trainingMax || 0} lb</dd>
                     </div>
-                    <div>
-                      <dt className="inline text-slate-500">Current Week: </dt>
-                      <dd className="inline font-medium text-slate-100">{trainingMax?.currentWeek || 1}</dd>
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-stone-500">Current Week</dt>
+                      <dd className="font-medium text-stone-100">{trainingMax?.currentWeek || 1}</dd>
                     </div>
                   </dl>
                 </article>
@@ -312,21 +368,21 @@ function Dashboard() {
 
           <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-6">
-              <form onSubmit={saveOneRepMaxes} className="rounded-lg border border-slate-800 bg-slate-900/80 p-6">
-                <h2 className="text-xl font-semibold text-slate-50">1RM Setup</h2>
-                <p className="mt-1 text-sm text-slate-400">
+              <form onSubmit={saveOneRepMaxes} className="quiet-card">
+                <h2 className="section-title">1RM Setup</h2>
+                <p className="section-copy">
                   Add your 1RM values to generate your first program.
                 </p>
                 <div className="mt-6 grid gap-4 md:grid-cols-2">
                   {lifts.map((lift) => (
                     <label key={lift.key} className="block">
-                      <span className="text-sm font-medium text-slate-300">{lift.label} 1RM</span>
+                      <span className="text-sm font-medium text-stone-300">{lift.label} 1RM</span>
                       <input
                         type="number"
                         min="0"
                         value={oneRepMaxes[lift.key]}
                         onChange={(event) => handleOneRepMaxChange(lift.key, event.target.value)}
-                        className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="form-field"
                       />
                     </label>
                   ))}
@@ -334,22 +390,22 @@ function Dashboard() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="mt-6 rounded-md bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
+                  className="btn-primary mt-6"
                 >
                   {saving ? 'Saving...' : 'Save 1RMs'}
                 </button>
               </form>
 
               <section className="grid gap-6 md:grid-cols-2">
-                <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-6">
-                  <h2 className="text-xl font-semibold text-slate-50">Generate Program</h2>
+                <div className="quiet-card">
+                  <h2 className="section-title">Generate Program</h2>
                   <div className="mt-4 flex flex-wrap items-end gap-3">
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-300">Week</span>
+                      <span className="text-sm font-medium text-stone-300">Week</span>
                       <select
                         value={programWeek}
                         onChange={(event) => setProgramWeek(event.target.value)}
-                        className="mt-1 rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="form-field"
                       >
                         <option value="1">Week 1</option>
                         <option value="2">Week 2</option>
@@ -361,24 +417,24 @@ function Dashboard() {
                       type="button"
                       onClick={generateProgram}
                       disabled={saving || trainingMaxes.length === 0}
-                      className="rounded-md bg-slate-100 px-4 py-2 font-medium text-slate-950 hover:bg-white disabled:cursor-not-allowed disabled:bg-slate-400"
+                      className="btn-primary"
                     >
                       Generate Workouts
                     </button>
                   </div>
                 </div>
 
-                <form onSubmit={updateProgression} className="rounded-lg border border-slate-800 bg-slate-900/80 p-6">
-                  <h2 className="text-xl font-semibold text-slate-50">Apply Progression</h2>
+                <form onSubmit={updateProgression} className="quiet-card">
+                  <h2 className="section-title">Apply Progression</h2>
                   <div className="mt-4 space-y-4">
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-300">Lift</span>
+                      <span className="text-sm font-medium text-stone-300">Lift</span>
                       <select
                         name="trainingMaxId"
                         value={progressionForm.trainingMaxId}
                         onChange={handleProgressionChange}
                         required
-                        className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="form-field"
                       >
                         <option value="">Select lift</option>
                         {trainingMaxes.map((trainingMax) => (
@@ -389,7 +445,7 @@ function Dashboard() {
                       </select>
                     </label>
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-300">Plus-set reps</span>
+                      <span className="text-sm font-medium text-stone-300">Plus-set reps</span>
                       <input
                         type="number"
                         name="plusSetReps"
@@ -397,24 +453,24 @@ function Dashboard() {
                         value={progressionForm.plusSetReps}
                         onChange={handleProgressionChange}
                         required
-                        className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="form-field"
                       />
                     </label>
                     <label className="block">
-                      <span className="text-sm font-medium text-slate-300">Notes</span>
+                      <span className="text-sm font-medium text-stone-300">Notes</span>
                       <input
                         type="text"
                         name="notes"
                         value={progressionForm.notes}
                         onChange={handleProgressionChange}
-                        className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                        className="form-field"
                       />
                     </label>
                   </div>
                   <button
                     type="submit"
                     disabled={saving || trainingMaxes.length === 0}
-                    className="mt-6 rounded-md bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
+                    className="btn-accent mt-6"
                   >
                     Apply Progression
                   </button>
@@ -430,13 +486,13 @@ function Dashboard() {
                 <ProgressChart
                   title="Weekly Workout Volume"
                   data={weeklyVolumeChartData}
-                  colorClass="bg-slate-700"
+                  colorClass="bg-stone-500"
                   emptyMessage="Log your first workout to see weekly volume."
                 />
                 <ProgressChart
                   title="Training Max Progress"
                   data={strengthProgressionChartData}
-                  colorClass="bg-emerald-500"
+                  colorClass="bg-amber-300"
                   emptyMessage="Log your first workout to see strength progression."
                 />
               </section>
@@ -444,12 +500,12 @@ function Dashboard() {
 
             <aside className="space-y-6">
               <section>
-                <h2 className="text-xl font-semibold text-slate-50">Next Workout</h2>
+                <h2 className="section-title">Next Workout</h2>
                 <div className="mt-4">
                   {dashboardData?.nextWorkout ? (
                     <WorkoutCard workout={dashboardData.nextWorkout} showActions={false} />
                   ) : (
-                    <p className="rounded-lg border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-400">
+                    <p className="empty-state">
                       Add your 1RM values to generate your first program.
                     </p>
                   )}
@@ -457,75 +513,73 @@ function Dashboard() {
               </section>
 
               <section>
-                <h2 className="text-xl font-semibold text-slate-50">Last Workout</h2>
+                <h2 className="section-title">Last Workout</h2>
                 <div className="mt-4">
                   {dashboardData?.lastWorkout ? (
                     <WorkoutCard workout={dashboardData.lastWorkout} showActions={false} />
                   ) : (
-                    <p className="rounded-lg border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-400">
+                    <p className="empty-state">
                       Log your first workout to see strength progression.
                     </p>
                   )}
                 </div>
               </section>
 
-              <section className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-                <h2 className="font-semibold text-slate-50">Nutrition Today</h2>
-                {nutritionToday?.meals?.length > 0 ? (
-                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <dt className="text-slate-500">Calories</dt>
-                      <dd className="font-medium text-slate-100">{nutritionToday.totalCalories || 0}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Protein</dt>
-                      <dd className="font-medium text-slate-100">{nutritionToday.totalProtein || 0}g</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Carbs</dt>
-                      <dd className="font-medium text-slate-100">{nutritionToday.totalCarbs || 0}g</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Fats</dt>
-                      <dd className="font-medium text-slate-100">{nutritionToday.totalFats || 0}g</dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <p className="mt-3 text-sm text-slate-400">Log meals to track today’s nutrition.</p>
-                )}
-              </section>
-
-              <section className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-                <h2 className="font-semibold text-slate-50">PR Summary</h2>
+              <section className="quiet-card">
+                <h2 className="font-semibold text-stone-50">PR Summary</h2>
                 {dashboardData?.recentPRs?.length > 0 ? (
                   <div className="mt-4 space-y-3">
                     {dashboardData.recentPRs.map((pr) => (
-                      <div key={pr._id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
-                        <p className="font-medium text-slate-100">{pr.exerciseName}</p>
-                        <p className="text-sm text-slate-400">
+                      <div key={pr._id} className="border-b border-stone-800 pb-3 last:border-0 last:pb-0">
+                        <p className="font-medium text-stone-100">{pr.exerciseName}</p>
+                        <p className="text-sm text-stone-400">
                           {pr.weight} x {pr.reps} · Est. 1RM {pr.estimatedOneRepMax || pr.oneRepMax || 0}
                         </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-3 text-sm text-slate-400">PRs will appear after you log records.</p>
+                  <p className="mt-3 text-sm text-stone-400">PRs will appear after you log records.</p>
                 )}
               </section>
 
-              <section className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-                <h2 className="font-semibold text-slate-50">Smart Recommendations</h2>
-                {dashboardData?.recentRecommendations?.length > 0 ? (
+              <section className="quiet-card">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="font-semibold text-stone-50">Coach Insights</h2>
+                  <Link to="/coach" className="text-sm font-medium text-stone-400 hover:text-stone-100">
+                    View all
+                  </Link>
+                </div>
+                {topCoachInsights.length > 0 ? (
                   <div className="mt-4 space-y-3">
-                    {dashboardData.recentRecommendations.map((recommendation) => (
-                      <div key={recommendation._id} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
-                        <p className="font-medium text-slate-100">{recommendation.title}</p>
-                        <p className="mt-1 text-sm text-slate-400">{recommendation.message}</p>
+                    {topCoachInsights.map((insight) => (
+                      <div key={`${insight.type}-${insight.title}`} className="border-b border-stone-800 pb-3 last:border-0 last:pb-0">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <p className="font-medium text-stone-100">{insight.title}</p>
+                          <span className="text-xs uppercase tracking-[0.16em] text-stone-500">{insight.priority}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-stone-400">{insight.message}</p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-3 text-sm text-slate-400">Recommendations will appear after progression updates.</p>
+                  <p className="mt-3 text-sm text-stone-400">Log training, PRs, and progress to unlock coach insights.</p>
+                )}
+              </section>
+
+              <section className="quiet-card">
+                <h2 className="font-semibold text-stone-50">Smart Recommendations</h2>
+                {dashboardData?.recentRecommendations?.length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    {dashboardData.recentRecommendations.map((recommendation) => (
+                      <div key={recommendation._id} className="border-b border-stone-800 pb-3 last:border-0 last:pb-0">
+                        <p className="font-medium text-stone-100">{recommendation.title}</p>
+                        <p className="mt-1 text-sm text-stone-400">{recommendation.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-stone-400">Recommendations will appear after progression updates.</p>
                 )}
               </section>
             </aside>

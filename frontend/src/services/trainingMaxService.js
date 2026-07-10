@@ -5,6 +5,10 @@ export const trainingMaxService = {
     const response = await api.get('/training-maxes');
     return response.data;
   },
+  getProgramWeeks: async () => {
+    const response = await api.get('/training-maxes/program-weeks');
+    return response.data;
+  },
   createTrainingMax: async (data) => {
     const response = await api.post('/training-maxes', data);
     return response.data;

@@ -20,9 +20,9 @@ function WorkoutCard({
 }) {
   if (!workout) {
     return (
-      <article className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-        <h3 className="font-semibold text-slate-100">{title}</h3>
-        <p className="mt-2 text-sm text-slate-400">{description}</p>
+      <article className="quiet-card">
+        <h3 className="font-semibold text-stone-100">{title}</h3>
+        <p className="mt-2 text-sm leading-6 text-stone-400">{description}</p>
       </article>
     );
   }
@@ -30,43 +30,43 @@ function WorkoutCard({
   const exerciseCount = workout.exercises?.length || 0;
 
   return (
-    <article className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
+    <article className="quiet-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-slate-100">{workout.title}</h3>
-          <p className="mt-1 text-sm text-slate-500">{formatWorkoutDate(workout.date)}</p>
+          <h3 className="font-semibold text-stone-100">{workout.title}</h3>
+          <p className="mt-1 text-sm text-stone-500">{formatWorkoutDate(workout.date)}</p>
         </div>
-        <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium capitalize text-slate-300">
+        <span className="rounded-md border border-stone-700 px-2 py-1 text-xs font-medium capitalize text-stone-400">
           {workout.status}
         </span>
       </div>
 
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-slate-500">Exercises</dt>
-          <dd className="font-medium text-slate-100">{exerciseCount}</dd>
+          <dt className="text-stone-500">Exercises</dt>
+          <dd className="font-medium text-stone-100">{exerciseCount}</dd>
         </div>
         <div>
-          <dt className="text-slate-500">Total volume</dt>
-          <dd className="font-medium text-slate-100">{workout.totalVolume || 0}</dd>
+          <dt className="text-stone-500">Total volume</dt>
+          <dd className="font-medium text-stone-100">{workout.totalVolume || 0}</dd>
         </div>
       </dl>
 
-      {workout.notes && <p className="mt-4 text-sm text-slate-400">{workout.notes}</p>}
+      {workout.notes && <p className="mt-4 text-sm leading-6 text-stone-400">{workout.notes}</p>}
 
       {showActions && (
         <div className="mt-4 flex gap-2">
           <button
             type="button"
             onClick={() => onEdit?.(workout)}
-            className="rounded-md border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800/60"
+            className="btn-secondary px-3"
           >
             Edit
           </button>
           <button
             type="button"
             onClick={() => onDelete?.(workout._id)}
-            className="rounded-md border border-red-900/60 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-950/40"
+            className="rounded-md border border-red-900/70 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-950/30"
           >
             Delete
           </button>

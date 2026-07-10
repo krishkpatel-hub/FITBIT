@@ -67,26 +67,6 @@ const userSchema = new mongoose.Schema(
       enum: ['', 'sedentary', 'light', 'moderate', 'active', 'very-active'],
       default: '',
     },
-    targetCalories: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    targetProtein: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    targetCarbs: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
-    targetFats: {
-      type: Number,
-      min: 0,
-      default: 0,
-    },
   },
   { timestamps: true },
 );

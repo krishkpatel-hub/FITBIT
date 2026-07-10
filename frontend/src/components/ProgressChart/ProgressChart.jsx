@@ -11,20 +11,20 @@ function ProgressChart({
   data = [],
   dataKey = 'value',
   labelKey = 'label',
-  colorClass = 'bg-emerald-950/400',
+  colorClass = 'bg-amber-300',
   emptyMessage = 'No chart data yet.',
 }) {
   const values = data.map((item) => Number(getValue(item, dataKey)) || 0);
   const maxValue = Math.max(...values, 0);
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-      <h3 className="font-semibold text-slate-100">{title}</h3>
+    <div className="quiet-card">
+      <h3 className="font-semibold text-stone-100">{title}</h3>
       {data.length === 0 || maxValue === 0 ? (
-        <p className="mt-4 text-sm text-slate-400">{emptyMessage}</p>
+        <p className="mt-4 text-sm text-stone-400">{emptyMessage}</p>
       ) : (
         <div className="mt-4">
-          <div className="flex h-40 items-end gap-2">
+          <div className="flex h-40 items-end gap-2 border-b border-stone-800">
             {data.map((item, index) => {
               const value = values[index];
               const height = Math.max((value / maxValue) * 100, 6);
@@ -33,12 +33,12 @@ function ProgressChart({
                 <div key={`${getValue(item, labelKey)}-${index}`} className="flex min-w-0 flex-1 flex-col items-center gap-2">
                   <div className="flex h-32 w-full items-end">
                     <div
-                      className={`w-full rounded-t ${colorClass}`}
+                      className={`w-full rounded-t-sm ${colorClass}`}
                       style={{ height: `${height}%` }}
                       title={`${value}`}
                     />
                   </div>
-                  <span className="w-full truncate text-center text-xs text-slate-500">{getValue(item, labelKey)}</span>
+                  <span className="w-full truncate text-center text-xs text-stone-500">{getValue(item, labelKey)}</span>
                 </div>
               );
             })}
@@ -50,4 +50,3 @@ function ProgressChart({
 }
 
 export default ProgressChart;
-

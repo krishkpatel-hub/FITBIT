@@ -6,18 +6,29 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(16, 185, 129, 0.14), transparent 28rem),
-    linear-gradient(135deg, #020617 0%, #0f172a 48%, #111827 100%);
-  color: #e2e8f0;
+  background-color: #090a09;
+  color: #f4f4f0;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root {
+  --app-bg: #090a09;
+  --app-surface: #0f1110;
+  --app-elevated: #151816;
+  --app-border: #292d2a;
+  --app-text: #f4f4f0;
+  --app-text-secondary: #a5aaa6;
+  --app-text-muted: #737a75;
+  --app-accent: #d6b94c;
+  --app-secondary-accent: #4faf73;
+  --app-danger: #d95c5c;
 }
 
 @layer base {
   input,
   select,
   textarea {
-    @apply bg-slate-950/70 text-slate-100 placeholder:text-slate-500;
+    @apply border-stone-700 bg-stone-950/80 text-stone-100 placeholder:text-stone-500;
   }
 
   input[type="date"] {
@@ -29,16 +40,216 @@ body {
   input,
   select,
   textarea {
-    @apply transition-colors duration-200;
+    @apply transition-colors duration-150;
   }
 }
 
 @layer components {
   .surface {
-    @apply rounded-lg border border-slate-800 bg-slate-900/80 shadow-sm shadow-black/20 backdrop-blur;
+    @apply rounded-xl border border-[#292d2a] bg-[#0f1110];
   }
 
   .muted-panel {
-    @apply rounded-md bg-slate-800/60 text-slate-300;
+    @apply rounded-xl border border-[#292d2a] bg-[#151816] text-[#a5aaa6];
+  }
+
+  .page-stack {
+    @apply space-y-8 md:space-y-10;
+  }
+
+  .page-header {
+    @apply border-b border-[#292d2a] pb-6;
+  }
+
+  .summary-grid {
+    @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .content-section {
+    @apply space-y-4;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.18em] text-[#737a75];
+  }
+
+  .page-title {
+    @apply mt-2 max-w-4xl text-3xl font-semibold tracking-tight text-[#f4f4f0] sm:text-4xl;
+  }
+
+  .page-copy {
+    @apply mt-3 max-w-2xl text-sm leading-6 text-[#a5aaa6] sm:text-base;
+  }
+
+  .section-title {
+    @apply text-xl font-semibold tracking-tight text-[#f4f4f0];
+  }
+
+  .section-copy {
+    @apply mt-1 max-w-2xl text-sm leading-6 text-[#a5aaa6];
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-[#d6b94c] px-4 py-2 text-sm font-semibold text-[#090a09] hover:-translate-y-0.5 hover:bg-[#e0c762] active:translate-y-0 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-[#292d2a] disabled:text-[#737a75];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-[#292d2a] px-4 py-2 text-sm font-medium text-[#f4f4f0] hover:-translate-y-0.5 hover:border-[#737a75] hover:bg-[#151816] active:translate-y-0 disabled:cursor-not-allowed disabled:translate-y-0 disabled:text-[#737a75];
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center justify-center rounded-lg bg-[#4faf73] px-4 py-2 text-sm font-semibold text-[#090a09] hover:-translate-y-0.5 hover:bg-[#62bd83] active:translate-y-0 disabled:cursor-not-allowed disabled:translate-y-0 disabled:bg-[#292d2a] disabled:text-[#737a75];
+  }
+
+  .form-field {
+    @apply mt-1 h-10 w-full rounded-lg border border-[#292d2a] bg-[#0f1110] px-3 py-2 text-[#f4f4f0] outline-none focus:border-[#d6b94c] focus:ring-0;
+  }
+
+  .metric-panel {
+    @apply border-t border-[#292d2a] pt-4;
+  }
+
+  .quiet-card {
+    @apply rounded-xl border border-[#292d2a] bg-[#0f1110] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.16)];
+  }
+
+  .status-success {
+    @apply rounded-lg border border-[#4faf73]/30 bg-[#4faf73]/10 px-3 py-2 text-sm text-[#c9f0d8];
+  }
+
+  .status-error {
+    @apply rounded-lg border border-[#d95c5c]/40 bg-[#d95c5c]/10 px-3 py-2 text-sm text-red-200;
+  }
+
+  .empty-state {
+    @apply rounded-xl border border-dashed border-[#292d2a] bg-[#0f1110] p-4 text-sm leading-6 text-[#a5aaa6];
+  }
+}
+
+.app-background {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 0.1;
+}
+
+.app-background__barbell,
+.app-background__dumbbell,
+.app-background__plate {
+  position: absolute;
+  border: 1px solid #737a75;
+  background: #151816;
+  transform-style: preserve-3d;
+}
+
+.app-background__barbell span,
+.app-background__dumbbell span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 2px;
+  width: 260px;
+  background: #737a75;
+  transform: translate(-50%, -50%);
+}
+
+.app-background__barbell::before,
+.app-background__barbell::after,
+.app-background__dumbbell::before,
+.app-background__dumbbell::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 34px;
+  height: 76px;
+  border: 1px solid #737a75;
+  background: #0f1110;
+  transform: translateY(-50%);
+}
+
+.app-background__barbell::before,
+.app-background__dumbbell::before {
+  left: -28px;
+}
+
+.app-background__barbell::after,
+.app-background__dumbbell::after {
+  right: -28px;
+}
+
+.app-background__barbell--one {
+  right: -40px;
+  top: 180px;
+  width: 260px;
+  height: 84px;
+  border-color: transparent;
+  background: transparent;
+  transform: rotate(-16deg);
+  animation: equipment-drift 18s ease-in-out infinite;
+}
+
+.app-background__dumbbell--one {
+  left: -80px;
+  bottom: 160px;
+  width: 220px;
+  height: 76px;
+  border-color: transparent;
+  background: transparent;
+  transform: rotate(14deg);
+  animation: equipment-drift 22s ease-in-out infinite reverse;
+}
+
+.app-background__plate {
+  border-radius: 999px;
+}
+
+.app-background__plate::after {
+  content: "";
+  position: absolute;
+  inset: 30%;
+  border-radius: 999px;
+  border: 1px solid #737a75;
+}
+
+.app-background__plate--one {
+  right: 12%;
+  bottom: 10%;
+  width: 150px;
+  height: 150px;
+  animation: plate-roll 26s linear infinite;
+}
+
+.app-background__plate--two {
+  left: 18%;
+  top: 16%;
+  width: 110px;
+  height: 110px;
+  animation: plate-roll 32s linear infinite reverse;
+}
+
+@keyframes equipment-drift {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 18px;
+  }
+}
+
+@keyframes plate-roll {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: 360deg;
+  }
+}
+
+@media (max-width: 767px), (prefers-reduced-motion: reduce) {
+  .app-background {
+    display: none;
   }
 }

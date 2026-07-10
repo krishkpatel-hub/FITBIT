@@ -1,5 +1,4 @@
 import asyncHandler from 'express-async-handler';
-import Nutrition from '../models/Nutrition.js';
 import PRRecord from '../models/PRRecord.js';
 import Progress from '../models/Progress.js';
 import Recommendation from '../models/Recommendation.js';
@@ -11,12 +10,6 @@ import { sendSuccess } from '../utils/apiHelpers.js';
 const startOfDay = (date) => {
   const value = new Date(date);
   value.setHours(0, 0, 0, 0);
-  return value;
-};
-
-const endOfDay = (date) => {
-  const value = new Date(date);
-  value.setHours(23, 59, 59, 999);
   return value;
 };
 
@@ -59,7 +52,6 @@ export const getDashboardData = asyncHandler(async (req, res) => {
   const userFilter = { user: req.user.id };
   const now = new Date();
   const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
   const twelveWeeksAgo = new Date(now);
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
 
@@ -70,7 +62,6 @@ export const getDashboardData = asyncHandler(async (req, res) => {
     recommendations,
     prs,
     progressHistory,
-    todaysNutrition,
     recentCompletedWorkouts,
   ] = await Promise.all([
     TrainingMax.find(userFilter).sort({ liftName: 1 }),
@@ -79,7 +70,6 @@ export const getDashboardData = asyncHandler(async (req, res) => {
     Recommendation.find(userFilter).sort({ createdAt: -1 }).limit(5),
     PRRecord.find(userFilter).sort({ date: -1 }).limit(5),
     Progress.find(userFilter).sort({ date: -1 }).limit(12),
-    Nutrition.findOne({ ...userFilter, date: { $gte: todayStart, $lte: todayEnd } }).sort({ updatedAt: -1 }),
     Workout.find({ ...userFilter, status: 'completed', date: { $gte: twelveWeeksAgo } }).sort({ date: 1 }),
   ]);
 
@@ -91,10 +81,6 @@ export const getDashboardData = asyncHandler(async (req, res) => {
     email: req.user.email,
     fitnessGoal: req.user.fitnessGoal,
     activityLevel: req.user.activityLevel,
-    targetCalories: req.user.targetCalories,
-    targetProtein: req.user.targetProtein,
-    targetCarbs: req.user.targetCarbs,
-    targetFats: req.user.targetFats,
   };
 
   sendSuccess(res, {
@@ -106,16 +92,8 @@ export const getDashboardData = asyncHandler(async (req, res) => {
     recentRecommendations: recommendations,
     recentPRs: prs,
     currentPRs: prs,
-    nutritionToday: todaysNutrition || {
-      meals: [],
-      totalCalories: 0,
-      totalProtein: 0,
-      totalCarbs: 0,
-      totalFats: 0,
-    },
     progressHistory,
     weeklyWorkoutVolume: buildWeeklyWorkoutVolume(recentCompletedWorkouts),
     strengthProgression: buildStrengthProgression(trainingMaxes),
   });
 });
-

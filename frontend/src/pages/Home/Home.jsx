@@ -6,35 +6,41 @@ const ThreeBackground = lazy(() => import('../../components/ThreeBackground/Thre
 
 function Home() {
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70 px-5 py-10 shadow-2xl shadow-black/30 sm:px-8 lg:px-10">
+    <section className="relative min-h-[620px] overflow-hidden rounded-xl border border-stone-800 bg-[#0d0c0a] px-6 py-12 sm:px-10 lg:px-12">
       <Suspense fallback={null}>
         <ThreeBackground />
       </Suspense>
-      <div className="relative z-10 grid gap-8 md:grid-cols-[1.15fr_0.85fr] md:items-center">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">Strength tracker</p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-bold tracking-tight text-slate-50 sm:text-5xl">
-            Build a stronger routine, one workout at a time.
+      <div className="relative z-10 flex min-h-[520px] flex-col justify-between gap-12">
+        <div className="max-w-4xl">
+          <p className="eyebrow">Strength Training Platform</p>
+          <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-[-0.045em] text-stone-50 sm:text-6xl lg:text-7xl">
+            Train with numbers that actually mean something.
           </h1>
-          <p className="mt-4 max-w-xl text-slate-300">
-            A premium MERN fitness app for adaptive strength programming, workout tracking, nutrition, and progress.
+          <p className="mt-6 max-w-2xl text-base leading-7 text-stone-300 sm:text-lg">
+            FitBit-Strength brings adaptive strength programming, workout logs, personal records, and progress history into one focused training workspace.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              to="/register"
-              className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400"
-            >
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/register" className="btn-primary">
               Get Started
             </Link>
-            <Link
-              to="/login"
-              className="rounded-md border border-slate-700 bg-slate-950/60 px-4 py-2 font-medium text-slate-200 hover:bg-slate-900"
-            >
+            <Link to="/login" className="btn-secondary">
               Login
             </Link>
           </div>
         </div>
-        <WorkoutCard title="Today's Focus" description="Plan workouts, log exercises, and let adaptive progression guide your next training max." />
+
+        <div className="grid gap-6 border-t border-stone-800 pt-8 md:grid-cols-[0.85fr_1.15fr] md:items-end">
+          <div>
+            <p className="text-sm uppercase tracking-[0.22em] text-stone-500">Today’s Focus</p>
+            <p className="mt-3 max-w-md text-sm leading-6 text-stone-300">
+              Plan workouts, log exercises, and let adaptive progression guide your next training max.
+            </p>
+          </div>
+          <WorkoutCard
+            title="Adaptive Strength"
+            description="A cleaner way to track training maxes, plus sets, volume, and progress without losing the feel of a real training notebook."
+          />
+        </div>
       </div>
     </section>
   );

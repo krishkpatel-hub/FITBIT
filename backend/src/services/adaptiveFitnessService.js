@@ -37,6 +37,13 @@ const WEEK_TEMPLATES = {
   ],
 };
 
+const WEEKLY_DAY_PLAN = [
+  { day: 'Day 1', liftName: 'bench', focus: 'Bench Press Day' },
+  { day: 'Day 2', liftName: 'deadlift', focus: 'Deadlift Day' },
+  { day: 'Day 3', liftName: 'squat', focus: 'Squat Day' },
+  { day: 'Day 4', liftName: 'overhead_press', focus: 'Overhead Press Day' },
+];
+
 export const supportedLifts = Object.keys(LIFT_LABELS);
 
 export const getLiftLabel = (liftName) => LIFT_LABELS[liftName] || liftName;
@@ -72,22 +79,31 @@ export const getIncreaseAmount = (plusSetReps) => {
 export const getNextWeek = (currentWeek) => (Number(currentWeek) >= 4 ? 1 : Number(currentWeek) + 1);
 
 export const generateWeeklyProgram = (trainingMaxes, requestedWeek) => {
-  return trainingMaxes.map((trainingMax, index) => {
+  const trainingMaxByLift = trainingMaxes.reduce((lookup, trainingMax) => {
+    lookup[trainingMax.liftName] = trainingMax;
+    return lookup;
+  }, {});
+
+  return WEEKLY_DAY_PLAN.map((dayPlan, index) => {
+    const trainingMax = trainingMaxByLift[dayPlan.liftName];
     const week = Number(requestedWeek || trainingMax.currentWeek || 1);
     const template = WEEK_TEMPLATES[week] || WEEK_TEMPLATES[1];
     const liftLabel = getLiftLabel(trainingMax.liftName);
 
     return {
-      title: `Week ${week} ${liftLabel}`,
+      title: `Week ${week} - ${dayPlan.focus}`,
       date: new Date(Date.now() + index * 24 * 60 * 60 * 1000),
       type: 'smart-adaptive',
+      programWeek: week,
+      programDay: index + 1,
+      liftName: trainingMax.liftName,
       status: 'planned',
-      notes: `Generated from ${liftLabel} training max of ${trainingMax.trainingMax}.`,
+      notes: `Week ${week} ${dayPlan.focus} generated from ${liftLabel} training max of ${trainingMax.trainingMax}.`,
       exercises: [
         {
           exerciseName: liftLabel,
           muscleGroup: trainingMax.liftName,
-          notes: `Week ${week} generated working sets.`,
+          notes: `${dayPlan.day} ${dayPlan.focus} working sets.`,
           sets: template.map((set, index) => ({
             setNumber: index + 1,
             reps: 0,

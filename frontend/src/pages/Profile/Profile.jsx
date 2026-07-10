@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { trainingMaxService } from '../../services/trainingMaxService.js';
+import { workoutService } from '../../services/workoutService.js';
 
 const profileFields = {
   height: '',
@@ -8,25 +10,25 @@ const profileFields = {
   gender: '',
   fitnessGoal: '',
   activityLevel: '',
-  targetCalories: '',
-  targetProtein: '',
-  targetCarbs: '',
-  targetFats: '',
 };
 
-const numberFields = new Set([
-  'height',
-  'weight',
-  'age',
-  'targetCalories',
-  'targetProtein',
-  'targetCarbs',
-  'targetFats',
-]);
+const numberFields = new Set(['height', 'weight', 'age']);
+const liftLabels = {
+  squat: 'Squat',
+  bench: 'Bench',
+  deadlift: 'Deadlift',
+  overhead_press: 'Overhead Press',
+};
 
 function Profile() {
   const { user, updateProfile } = useAuth();
   const [formData, setFormData] = useState(profileFields);
+  const [summary, setSummary] = useState({
+    trainingMaxes: [],
+    currentWeek: 1,
+    workoutsCompleted: 0,
+  });
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -43,6 +45,37 @@ function Profile() {
       }, {}),
     );
   }, [user]);
+
+  useEffect(() => {
+    const loadStrengthSummary = async () => {
+      setSummaryLoading(true);
+
+      try {
+        const [trainingMaxResponse, workoutResponse] = await Promise.all([
+          trainingMaxService.getTrainingMaxes(),
+          workoutService.getWorkouts(),
+        ]);
+        const trainingMaxes = trainingMaxResponse.data || [];
+        const workouts = workoutResponse.data || [];
+
+        setSummary({
+          trainingMaxes,
+          currentWeek: trainingMaxes[0]?.currentWeek || 1,
+          workoutsCompleted: workouts.filter((workout) => workout.status === 'completed').length,
+        });
+      } catch (err) {
+        setSummary({
+          trainingMaxes: [],
+          currentWeek: 1,
+          workoutsCompleted: 0,
+        });
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+
+    loadStrengthSummary();
+  }, []);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -80,40 +113,69 @@ function Profile() {
   };
 
   return (
-    <section className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-50">Profile</h1>
-        <p className="mt-2 text-slate-400">
-          {user?.firstName} {user?.lastName} · {user?.email}
+    <section className="page-stack">
+      <div className="page-header">
+        <p className="eyebrow">Account</p>
+        <h1 className="page-title">Profile</h1>
+        <p className="page-copy">
+          Keep personal details simple and strength-focused.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-lg border border-slate-800 bg-slate-900/80 p-6">
-        <h2 className="text-xl font-semibold text-slate-50">Fitness Details</h2>
+      <form onSubmit={handleSubmit} className="quiet-card">
+        <h2 className="section-title">Personal & Fitness Details</h2>
 
-        {error && <p className="mt-4 rounded-md bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>}
-        {success && <p className="mt-4 rounded-md bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">{success}</p>}
+        {error && <p className="mt-4 status-error">{error}</p>}
+        {success && <p className="mt-4 status-success">{success}</p>}
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div>
+            <p className="text-sm font-medium text-stone-300">First name</p>
+            <p className="mt-1 rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
+              {user?.firstName || 'Not set'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-stone-300">Last name</p>
+            <p className="mt-1 rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
+              {user?.lastName || 'Not set'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-stone-300">Username</p>
+            <p className="mt-1 rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
+              {user?.username || 'Not set'}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-stone-300">Email</p>
+            <p className="mt-1 rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
+              {user?.email || 'Not set'}
+            </p>
+          </div>
+
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Age</span>
+            <span className="text-sm font-medium text-stone-300">Age</span>
             <input
               type="number"
               name="age"
               min="0"
               value={formData.age}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="form-field"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Gender</span>
+            <span className="text-sm font-medium text-stone-300">Gender</span>
             <select
               name="gender"
               value={formData.gender}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="form-field"
             >
               <option value="">Select gender</option>
               <option value="male">Male</option>
@@ -125,36 +187,36 @@ function Profile() {
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Height</span>
+            <span className="text-sm font-medium text-stone-300">Height</span>
             <input
               type="number"
               name="height"
               min="0"
               value={formData.height}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="form-field"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Weight</span>
+            <span className="text-sm font-medium text-stone-300">Weight</span>
             <input
               type="number"
               name="weight"
               min="0"
               value={formData.weight}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="form-field"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Fitness goal</span>
+            <span className="text-sm font-medium text-stone-300">Fitness goal</span>
             <select
               name="fitnessGoal"
               value={formData.fitnessGoal}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="form-field"
             >
               <option value="">Select goal</option>
               <option value="lose-weight">Lose weight</option>
@@ -166,12 +228,12 @@ function Profile() {
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Activity level</span>
+            <span className="text-sm font-medium text-stone-300">Activity level</span>
             <select
               name="activityLevel"
               value={formData.activityLevel}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="form-field"
             >
               <option value="">Select level</option>
               <option value="sedentary">Sedentary</option>
@@ -182,63 +244,45 @@ function Profile() {
             </select>
           </label>
 
-          <label className="block">
-            <span className="text-sm font-medium text-slate-300">Target calories</span>
-            <input
-              type="number"
-              name="targetCalories"
-              min="0"
-              value={formData.targetCalories}
-              onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-300">Target protein</span>
-            <input
-              type="number"
-              name="targetProtein"
-              min="0"
-              value={formData.targetProtein}
-              onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-300">Target carbs</span>
-            <input
-              type="number"
-              name="targetCarbs"
-              min="0"
-              value={formData.targetCarbs}
-              onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-slate-300">Target fats</span>
-            <input
-              type="number"
-              name="targetFats"
-              min="0"
-              value={formData.targetFats}
-              onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
-            />
-          </label>
         </div>
 
         <button
           type="submit"
           disabled={submitting}
-          className="mt-6 rounded-md bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
+          className="btn-primary mt-6"
         >
           {submitting ? 'Saving...' : 'Save Profile'}
         </button>
       </form>
+
+      <section className="quiet-card">
+        <h2 className="section-title">Strength Summary</h2>
+
+        {summaryLoading ? (
+          <p className="empty-state mt-5">Loading strength summary...</p>
+        ) : (
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {Object.entries(liftLabels).map(([liftName, label]) => {
+              const trainingMax = summary.trainingMaxes.find((item) => item.liftName === liftName);
+
+              return (
+                <div key={liftName} className="metric-panel">
+                  <p className="text-sm text-stone-500">{label} TM</p>
+                  <p className="mt-2 text-2xl font-semibold text-stone-50">{trainingMax?.trainingMax || 0} lb</p>
+                </div>
+              );
+            })}
+            <div className="metric-panel">
+              <p className="text-sm text-stone-500">Current program week</p>
+              <p className="mt-2 text-2xl font-semibold text-stone-50">{summary.currentWeek}</p>
+            </div>
+            <div className="metric-panel">
+              <p className="text-sm text-stone-500">Workouts completed</p>
+              <p className="mt-2 text-2xl font-semibold text-stone-50">{summary.workoutsCompleted}</p>
+            </div>
+          </div>
+        )}
+      </section>
     </section>
   );
 }

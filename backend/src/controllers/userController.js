@@ -13,10 +13,6 @@ const allowedProfileFields = [
   'weight',
   'fitnessGoal',
   'activityLevel',
-  'targetCalories',
-  'targetProtein',
-  'targetCarbs',
-  'targetFats',
 ];
 
 const normalizeUniqueFields = (updates) => {

@@ -2,6 +2,7 @@ import express from 'express';
 import {
   createWorkout,
   deleteWorkout,
+  duplicateWorkout,
   getWorkoutById,
   getWorkouts,
   updateWorkout,
@@ -13,6 +14,7 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/').get(getWorkouts).post(createWorkout);
+router.post('/:id/duplicate', duplicateWorkout);
 router.route('/:id').get(getWorkoutById).put(updateWorkout).delete(deleteWorkout);
 
 export default router;

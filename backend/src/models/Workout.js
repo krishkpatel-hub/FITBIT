@@ -88,6 +88,21 @@ const workoutSchema = new mongoose.Schema(
       trim: true,
       default: 'strength',
     },
+    programWeek: {
+      type: Number,
+      min: 1,
+      max: 4,
+      index: true,
+    },
+    programDay: {
+      type: Number,
+      min: 1,
+      max: 4,
+    },
+    liftName: {
+      type: String,
+      enum: ['squat', 'bench', 'deadlift', 'overhead_press'],
+    },
     status: {
       type: String,
       enum: ['planned', 'completed', 'skipped'],

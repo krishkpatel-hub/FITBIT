@@ -159,23 +159,23 @@ function Progress() {
   return (
     <section className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-50">Progress</h1>
-        <p className="mt-2 text-slate-400">Log body metrics and review your history.</p>
+        <h1 className="text-3xl font-bold text-stone-50">Progress</h1>
+        <p className="mt-2 text-stone-400">Log body metrics and review your history.</p>
       </div>
 
-      {error && <p className="rounded-md bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>}
-      {success && <p className="rounded-md bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300">{success}</p>}
+      {error && <p className="status-error">{error}</p>}
+      {success && <p className="status-success">{success}</p>}
 
-      <form onSubmit={handleSubmit} className="rounded-lg border border-slate-800 bg-slate-900/80 p-6">
+      <form onSubmit={handleSubmit} className="quiet-card">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold text-slate-50">
+          <h2 className="text-xl font-semibold text-stone-50">
             {editingLogId ? 'Edit Progress Log' : 'Create Progress Log'}
           </h2>
           {editingLogId && (
             <button
               type="button"
               onClick={resetForm}
-              className="rounded-md border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800/60"
+              className="btn-secondary px-3"
             >
               Cancel Edit
             </button>
@@ -184,18 +184,18 @@ function Progress() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Date</span>
+            <span className="text-sm font-medium text-stone-300">Date</span>
             <input
               type="date"
               name="date"
               value={formData.date}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="mt-1 w-full rounded-md border border-stone-700 px-3 py-2 outline-none focus:border-amber-300 focus:ring-1 focus:ring-amber-300/40"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Body weight</span>
+            <span className="text-sm font-medium text-stone-300">Body weight</span>
             <input
               type="number"
               name="bodyWeight"
@@ -203,12 +203,12 @@ function Progress() {
               step="0.1"
               value={formData.bodyWeight}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="mt-1 w-full rounded-md border border-stone-700 px-3 py-2 outline-none focus:border-amber-300 focus:ring-1 focus:ring-amber-300/40"
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-medium text-slate-300">Body fat %</span>
+            <span className="text-sm font-medium text-stone-300">Body fat %</span>
             <input
               type="number"
               name="bodyFatPercentage"
@@ -217,13 +217,13 @@ function Progress() {
               step="0.1"
               value={formData.bodyFatPercentage}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="mt-1 w-full rounded-md border border-stone-700 px-3 py-2 outline-none focus:border-amber-300 focus:ring-1 focus:ring-amber-300/40"
             />
           </label>
 
           {['chest', 'waist', 'hips', 'arms', 'thighs'].map((field) => (
             <label key={field} className="block">
-              <span className="text-sm font-medium capitalize text-slate-300">{field}</span>
+              <span className="text-sm font-medium capitalize text-stone-300">{field}</span>
               <input
                 type="number"
                 name={field}
@@ -231,19 +231,19 @@ function Progress() {
                 step="0.1"
                 value={formData[field]}
                 onChange={handleChange}
-                className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                className="mt-1 w-full rounded-md border border-stone-700 px-3 py-2 outline-none focus:border-amber-300 focus:ring-1 focus:ring-amber-300/40"
               />
             </label>
           ))}
 
           <label className="block md:col-span-3">
-            <span className="text-sm font-medium text-slate-300">Notes</span>
+            <span className="text-sm font-medium text-stone-300">Notes</span>
             <textarea
               name="notes"
               value={formData.notes}
               onChange={handleChange}
               rows="3"
-              className="mt-1 w-full rounded-md border border-slate-700 px-3 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+              className="mt-1 w-full rounded-md border border-stone-700 px-3 py-2 outline-none focus:border-amber-300 focus:ring-1 focus:ring-amber-300/40"
             />
           </label>
         </div>
@@ -251,28 +251,28 @@ function Progress() {
         <button
           type="submit"
           disabled={saving}
-          className="mt-6 rounded-md bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-900"
+          className="btn-primary mt-6"
         >
           {saving ? 'Saving...' : editingLogId ? 'Update Log' : 'Create Log'}
         </button>
       </form>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-slate-50">Progress History</h2>
+        <h2 className="text-xl font-semibold text-stone-50">Progress History</h2>
         {loading ? (
-          <p className="rounded-lg border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-400">Loading progress logs...</p>
+          <p className="quiet-card text-sm text-stone-400">Loading progress logs...</p>
         ) : logs.length === 0 ? (
-          <p className="rounded-lg border border-slate-800 bg-slate-900/80 p-4 text-sm text-slate-400">
+          <p className="quiet-card text-sm text-stone-400">
             No progress logs yet. Create your first log above.
           </p>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {logs.map((log) => (
-              <article key={log._id} className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
+              <article key={log._id} className="quiet-card">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-slate-100">{formatDate(log.date)}</h3>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <h3 className="font-semibold text-stone-100">{formatDate(log.date)}</h3>
+                    <p className="mt-1 text-sm text-stone-500">
                       {log.bodyWeight || 0} weight · {log.bodyFatPercentage || 0}% body fat
                     </p>
                   </div>
@@ -280,34 +280,34 @@ function Progress() {
 
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div>
-                    <dt className="text-slate-500">Chest</dt>
-                    <dd className="font-medium text-slate-100">{log.measurements?.chest || 0}</dd>
+                    <dt className="text-stone-500">Chest</dt>
+                    <dd className="font-medium text-stone-100">{log.measurements?.chest || 0}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Waist</dt>
-                    <dd className="font-medium text-slate-100">{log.measurements?.waist || 0}</dd>
+                    <dt className="text-stone-500">Waist</dt>
+                    <dd className="font-medium text-stone-100">{log.measurements?.waist || 0}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Hips</dt>
-                    <dd className="font-medium text-slate-100">{log.measurements?.hips || 0}</dd>
+                    <dt className="text-stone-500">Hips</dt>
+                    <dd className="font-medium text-stone-100">{log.measurements?.hips || 0}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Arms</dt>
-                    <dd className="font-medium text-slate-100">{log.measurements?.arms || 0}</dd>
+                    <dt className="text-stone-500">Arms</dt>
+                    <dd className="font-medium text-stone-100">{log.measurements?.arms || 0}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Thighs</dt>
-                    <dd className="font-medium text-slate-100">{log.measurements?.thighs || 0}</dd>
+                    <dt className="text-stone-500">Thighs</dt>
+                    <dd className="font-medium text-stone-100">{log.measurements?.thighs || 0}</dd>
                   </div>
                 </dl>
 
-                {log.notes && <p className="mt-4 text-sm text-slate-400">{log.notes}</p>}
+                {log.notes && <p className="mt-4 text-sm text-stone-400">{log.notes}</p>}
 
                 <div className="mt-4 flex gap-2">
                   <button
                     type="button"
                     onClick={() => handleEdit(log)}
-                    className="rounded-md border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800/60"
+                    className="btn-secondary px-3"
                   >
                     Edit
                   </button>

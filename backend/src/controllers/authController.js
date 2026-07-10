@@ -11,12 +11,16 @@ const buildAuthResponse = (user) => ({
 
 const normalizeEmail = (email = '') => email.trim().toLowerCase();
 const normalizeUsername = (username = '') => username.trim().toLowerCase();
+const emailPattern = /^\S+@\S+\.\S+$/;
 
 const validateRequiredFields = (fields) => {
-  const missingField = Object.entries(fields).find(([, value]) => value === undefined || value === null || value === '');
+  const missingField = Object.entries(fields).find(([, field]) => {
+    const value = field.value;
+    return value === undefined || value === null || (typeof value === 'string' ? value.trim() === '' : value === '');
+  });
 
   if (missingField) {
-    const error = new Error(`${missingField[0]} is required`);
+    const error = new Error(`${missingField[1].label} is required`);
     error.statusCode = 400;
     throw error;
   }
@@ -36,34 +40,41 @@ export const registerUser = asyncHandler(async (req, res) => {
     weight,
     fitnessGoal,
     activityLevel,
-    targetCalories,
-    targetProtein,
-    targetCarbs,
-    targetFats,
   } = req.body;
 
   validateRequiredFields({
-    firstName,
-    lastName,
-    username,
-    email,
-    password,
+    firstName: { label: 'First name', value: firstName },
+    lastName: { label: 'Last name', value: lastName },
+    username: { label: 'Username', value: username },
+    email: { label: 'Email', value: email },
+    password: { label: 'Password', value: password },
   });
+
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedUsername = normalizeUsername(username);
+
+  if (!emailPattern.test(normalizedEmail)) {
+    res.status(400);
+    throw new Error('Invalid email address');
+  }
 
   if (password.length < 6) {
     res.status(400);
     throw new Error('Password must be at least 6 characters');
   }
 
-  const normalizedEmail = normalizeEmail(email);
-  const normalizedUsername = normalizeUsername(username);
-  const existingUser = await User.findOne({
-    $or: [{ email: normalizedEmail }, { username: normalizedUsername }],
-  });
+  const existingEmail = await User.findOne({ email: normalizedEmail });
 
-  if (existingUser) {
+  if (existingEmail) {
     res.status(409);
-    throw new Error('User with that email or username already exists');
+    throw new Error('Email already exists');
+  }
+
+  const existingUsername = await User.findOne({ username: normalizedUsername });
+
+  if (existingUsername) {
+    res.status(409);
+    throw new Error('Username already exists');
   }
 
   const user = await User.create({
@@ -79,10 +90,6 @@ export const registerUser = asyncHandler(async (req, res) => {
     weight,
     fitnessGoal,
     activityLevel,
-    targetCalories,
-    targetProtein,
-    targetCarbs,
-    targetFats,
   });
 
   const safeUser = await User.findById(user._id).select(publicUserFields);
@@ -99,8 +106,8 @@ export const loginUser = asyncHandler(async (req, res) => {
   const identifier = emailOrUsername || email || username;
 
   validateRequiredFields({
-    identifier,
-    password,
+    identifier: { label: 'Email or username', value: identifier },
+    password: { label: 'Password', value: password },
   });
 
   const normalizedIdentifier = identifier.trim().toLowerCase();

@@ -17,6 +17,10 @@ export const workoutService = {
     const response = await api.put(`/workouts/${id}`, workoutData);
     return response.data;
   },
+  duplicateWorkout: async (id, date) => {
+    const response = await api.post(`/workouts/${id}/duplicate`, { date });
+    return response.data;
+  },
   deleteWorkout: async (id) => {
     const response = await api.delete(`/workouts/${id}`);
     return response.data;

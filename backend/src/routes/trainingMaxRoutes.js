@@ -3,6 +3,7 @@ import {
   createTrainingMax,
   deleteTrainingMax,
   generateProgram,
+  getProgramWeeks,
   getTrainingMaxById,
   getTrainingMaxes,
   updateProgression,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/').get(getTrainingMaxes).post(createTrainingMax);
+router.get('/program-weeks', getProgramWeeks);
 router.post('/generate-program', generateProgram);
 router.post('/update-progression', updateProgression);
 router.route('/:id').get(getTrainingMaxById).put(updateTrainingMax).delete(deleteTrainingMax);

@@ -10,7 +10,7 @@ const recommendationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['workout', 'nutrition', 'progress', 'recovery'],
+      enum: ['workout', 'progress', 'recovery'],
       required: true,
     },
     title: {
@@ -57,4 +57,3 @@ recommendationSchema.index({ user: 1, isRead: 1 });
 const Recommendation = mongoose.model('Recommendation', recommendationSchema);
 
 export default Recommendation;
-

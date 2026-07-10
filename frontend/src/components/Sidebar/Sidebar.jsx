@@ -1,11 +1,27 @@
+import { NavLink } from 'react-router-dom';
+import { appNavigationLinks } from '../../utils/navigation.js';
+
 function Sidebar() {
   return (
-    <aside className="rounded-lg border border-slate-800 bg-slate-900/80 p-4">
-      <h2 className="font-semibold text-slate-100">Quick Stats</h2>
-      <p className="mt-2 text-sm text-slate-400">Workout and progress summaries will appear here.</p>
+    <aside className="quiet-card" aria-label="App navigation">
+      <h2 className="font-semibold text-stone-100">FitBit-Strength</h2>
+      <nav className="mt-4 grid gap-1">
+        {appNavigationLinks.map((link) => (
+          <NavLink
+            key={link.to}
+            to={link.to}
+            className={({ isActive }) =>
+              isActive
+                ? 'rounded-md border border-stone-700 bg-stone-900 px-3 py-2 text-sm font-medium text-stone-50'
+                : 'rounded-md px-3 py-2 text-sm font-medium text-stone-400 hover:bg-stone-900/70 hover:text-stone-100'
+            }
+          >
+            {link.label}
+          </NavLink>
+        ))}
+      </nav>
     </aside>
   );
 }
 
 export default Sidebar;
-

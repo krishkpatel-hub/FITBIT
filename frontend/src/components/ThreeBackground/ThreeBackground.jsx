@@ -20,7 +20,7 @@ function useReducedMotion() {
   return reducedMotion;
 }
 
-function GymShape({ position, scale = 1, rotation = [0, 0, 0], color = '#10b981', speed = 1 }) {
+function GymShape({ position, scale = 1, rotation = [0, 0, 0], color = '#b9a36a', speed = 1 }) {
   const groupRef = useRef(null);
   const reducedMotion = useReducedMotion();
 
@@ -30,24 +30,24 @@ function GymShape({ position, scale = 1, rotation = [0, 0, 0], color = '#10b981'
     }
 
     const elapsed = clock.getElapsedTime();
-    groupRef.current.rotation.y = rotation[1] + Math.sin(elapsed * 0.18 * speed) * 0.12 + pointer.x * 0.1;
-    groupRef.current.rotation.x = rotation[0] + Math.cos(elapsed * 0.14 * speed) * 0.08 - pointer.y * 0.06;
-    groupRef.current.position.y = position[1] + Math.sin(elapsed * 0.35 * speed) * 0.12;
+    groupRef.current.rotation.y = rotation[1] + Math.sin(elapsed * 0.14 * speed) * 0.08 + pointer.x * 0.06;
+    groupRef.current.rotation.x = rotation[0] + Math.cos(elapsed * 0.12 * speed) * 0.05 - pointer.y * 0.04;
+    groupRef.current.position.y = position[1] + Math.sin(elapsed * 0.28 * speed) * 0.08;
   });
 
   return (
     <group ref={groupRef} position={position} rotation={rotation} scale={scale}>
       <mesh castShadow={false} receiveShadow={false}>
         <boxGeometry args={[1.4, 0.16, 0.16]} />
-        <meshStandardMaterial color="#94a3b8" metalness={0.65} roughness={0.32} />
+        <meshStandardMaterial color="#aaa39a" metalness={0.55} roughness={0.42} />
       </mesh>
       <mesh position={[-0.86, 0, 0]}>
         <boxGeometry args={[0.22, 0.56, 0.56]} />
-        <meshStandardMaterial color={color} metalness={0.35} roughness={0.42} />
+        <meshStandardMaterial color={color} metalness={0.25} roughness={0.58} />
       </mesh>
       <mesh position={[0.86, 0, 0]}>
         <boxGeometry args={[0.22, 0.56, 0.56]} />
-        <meshStandardMaterial color={color} metalness={0.35} roughness={0.42} />
+        <meshStandardMaterial color={color} metalness={0.25} roughness={0.58} />
       </mesh>
     </group>
   );
@@ -71,11 +71,11 @@ function AmbientRings() {
     <group ref={ringRef} position={[0.2, -0.1, -1.4]}>
       <mesh>
         <torusGeometry args={[2.4, 0.01, 12, 96]} />
-        <meshBasicMaterial color="#10b981" transparent opacity={0.2} />
+        <meshBasicMaterial color="#8f8371" transparent opacity={0.16} />
       </mesh>
       <mesh rotation={[0.35, 0.2, 0.8]}>
         <torusGeometry args={[1.65, 0.008, 12, 96]} />
-        <meshBasicMaterial color="#64748b" transparent opacity={0.24} />
+        <meshBasicMaterial color="#56514a" transparent opacity={0.2} />
       </mesh>
     </group>
   );
@@ -84,9 +84,9 @@ function AmbientRings() {
 function Scene() {
   const shapes = useMemo(
     () => [
-      { position: [-2.1, 0.75, 0], rotation: [0.1, 0.4, -0.28], scale: 0.86, color: '#10b981', speed: 0.9 },
-      { position: [1.75, -0.15, -0.35], rotation: [-0.25, -0.3, 0.24], scale: 0.72, color: '#14b8a6', speed: 1.15 },
-      { position: [0.5, 1.3, -1.2], rotation: [0.2, -0.7, 0.2], scale: 0.52, color: '#475569', speed: 0.75 },
+      { position: [-2.1, 0.75, 0], rotation: [0.1, 0.4, -0.28], scale: 0.86, color: '#a9925c', speed: 0.9 },
+      { position: [1.75, -0.15, -0.35], rotation: [-0.25, -0.3, 0.24], scale: 0.72, color: '#756d61', speed: 1.15 },
+      { position: [0.5, 1.3, -1.2], rotation: [0.2, -0.7, 0.2], scale: 0.52, color: '#4f4a43', speed: 0.75 },
     ],
     [],
   );
@@ -95,11 +95,11 @@ function Scene() {
     <>
       <PerspectiveCamera makeDefault position={[0, 0, 5.3]} fov={42} />
       <ambientLight intensity={0.7} />
-      <directionalLight position={[4, 4, 5]} intensity={1.3} />
-      <pointLight position={[-3, 2, 2]} intensity={1.2} color="#10b981" />
+      <directionalLight position={[4, 4, 5]} intensity={1.05} />
+      <pointLight position={[-3, 2, 2]} intensity={0.55} color="#c0aa78" />
       <AmbientRings />
       {shapes.map((shape) => (
-        <Float key={shape.position.join(',')} speed={1.2} rotationIntensity={0.18} floatIntensity={0.28}>
+        <Float key={shape.position.join(',')} speed={0.85} rotationIntensity={0.1} floatIntensity={0.18}>
           <GymShape {...shape} />
         </Float>
       ))}
@@ -128,13 +128,13 @@ class ThreeErrorBoundary extends Component {
 
 function Fallback() {
   return (
-    <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_30%_20%,rgba(16,185,129,0.22),transparent_32%),linear-gradient(135deg,rgba(15,23,42,0.8),rgba(2,6,23,0.9))]" />
+    <div className="absolute inset-0 rounded-xl bg-stone-950/40" />
   );
 }
 
 function ThreeBackground({ className = '' }) {
   return (
-    <div className={`pointer-events-none absolute inset-0 overflow-hidden rounded-2xl ${className}`} aria-hidden="true">
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden rounded-xl ${className}`} aria-hidden="true">
       <Fallback />
       <ThreeErrorBoundary fallback={<Fallback />}>
         <Canvas
@@ -156,4 +156,3 @@ function ThreeBackground({ className = '' }) {
 }
 
 export default ThreeBackground;
-
