@@ -57,6 +57,12 @@ const buildProgramWeekSnapshot = (trainingMaxes) =>
 
 const getWeekNumber = (programWeek) => Number(programWeek.weekNumber || programWeek.week || 1);
 
+const populateProgramWeekWorkouts = (query) =>
+  query.populate({
+    path: 'workouts',
+    options: { sort: { programDay: 1, date: 1 } },
+  });
+
 const cleanupDuplicateProgramWeeks = async (userId) => {
   const programWeeks = await ProgramWeek.find({ user: userId }).sort({ updatedAt: -1, dateCreated: -1, createdAt: -1 });
   const newestByWeek = new Map();
@@ -110,9 +116,7 @@ const upsertProgramWeekMaxSnapshot = async ({ userId, weekNumber, trainingMaxes,
     { user: userId, weekNumber: Number(weekNumber) },
     {
       $set: {
-        user: userId,
         week: Number(weekNumber),
-        weekNumber: Number(weekNumber),
         maxesEntered: true,
         maxes: buildProgramWeekSnapshot(trainingMaxes),
       },
@@ -211,6 +215,9 @@ const getCompletedProgramWeek = async (userId, week) => {
   return programWeek;
 };
 
+const getGeneratedProgramWeek = async (userId, weekNumber) =>
+  populateProgramWeekWorkouts(ProgramWeek.findOne({ user: userId, weekNumber }));
+
 export const getTrainingMaxes = asyncHandler(async (req, res) => {
   const trainingMaxes = await TrainingMax.find({ user: req.user.id }).sort({ liftName: 1 });
 
@@ -235,22 +242,20 @@ export const createTrainingMax = asyncHandler(async (req, res) => {
 
   const fields = pickTrainingMaxFields(req.body);
   const calculatedTrainingMax = fields.trainingMax ?? calculateTrainingMax(fields.oneRepMax);
+  const { liftName, ...trainingMaxUpdates } = fields;
 
   const trainingMax = await TrainingMax.findOneAndUpdate(
-    { user: req.user.id, liftName: fields.liftName },
+    { user: req.user.id, liftName },
     {
       $set: {
-        ...fields,
+        ...trainingMaxUpdates,
         trainingMax: calculatedTrainingMax,
         currentWeek: fields.currentWeek || 1,
         lastUpdated: new Date(),
       },
-      $setOnInsert: {
-        user: req.user.id,
-      },
       $push: {
         history: buildHistoryEntry({
-          liftName: fields.liftName,
+          liftName,
           week: fields.currentWeek || 1,
           oneRepMax: fields.oneRepMax,
           trainingMax: calculatedTrainingMax,
@@ -375,13 +380,6 @@ export const generateProgram = asyncHandler(async (req, res) => {
     throw new Error(`Week ${requestedWeek} is already completed and cannot be regenerated`);
   }
 
-  if (existingProgramWeek?.workouts?.length > 0) {
-    await Workout.deleteMany({
-      user: req.user.id,
-      _id: { $in: existingProgramWeek.workouts.map((workout) => workout._id) },
-    });
-  }
-
   const maxesSavedForRequestedWeek = trainingMaxes.every(
     (trainingMax) => Number(trainingMax.currentWeek || 1) === requestedWeek,
   );
@@ -389,6 +387,24 @@ export const generateProgram = asyncHandler(async (req, res) => {
   if (!maxesSavedForRequestedWeek) {
     res.status(400);
     throw new Error(`Enter new maxes to generate Week ${requestedWeek}`);
+  }
+
+  if (existingProgramWeek?.workouts?.length >= 4) {
+    const programWeek = await getGeneratedProgramWeek(req.user.id, requestedWeek);
+
+    sendSuccess(res, {
+      programWeek,
+      workouts: programWeek.workouts,
+      message: `Week ${requestedWeek} is already generated`,
+    });
+    return;
+  }
+
+  if (existingProgramWeek?.workouts?.length > 0) {
+    await Workout.deleteMany({
+      user: req.user.id,
+      _id: { $in: existingProgramWeek.workouts.map((workout) => workout._id) },
+    });
   }
 
   await TrainingMax.updateMany(
@@ -410,9 +426,7 @@ export const generateProgram = asyncHandler(async (req, res) => {
     { user: req.user.id, weekNumber: requestedWeek },
     {
       $set: {
-        user: req.user.id,
         week: requestedWeek,
-        weekNumber: requestedWeek,
         status: 'current',
         daysCompleted: 0,
         maxesEntered: true,
@@ -422,7 +436,6 @@ export const generateProgram = asyncHandler(async (req, res) => {
         completedAt: null,
       },
       $setOnInsert: {
-        user: req.user.id,
         dateCreated: new Date(),
       },
     },
