@@ -1,0 +1,19 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#090A09"/>
+  <path d="M0 150H1200M0 315H1200M0 480H1200M210 0V630M600 0V630M990 0V630" stroke="#1F2422" stroke-width="1"/>
+  <rect x="86" y="86" width="1028" height="458" rx="28" fill="#0F1110" stroke="#292D2A"/>
+  <g transform="translate(130 155) scale(2.35)">
+    <rect width="64" height="64" rx="14" fill="#090A09"/>
+    <path d="M41.5 15H29.75C21.6 15 15 21.6 15 29.75v4.5C15 42.4 21.6 49 29.75 49H41" stroke="#D4AF37" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M43 47V19" stroke="#F4F4F0" stroke-width="4" stroke-linecap="square"/>
+    <path d="M35 27L43 19L51 27" stroke="#F4F4F0" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M18 35H50" stroke="#8FA3AD" stroke-width="3" stroke-linecap="square"/>
+    <path d="M13 28V42M51 28V42" stroke="#D4AF37" stroke-width="4" stroke-linecap="square"/>
+    <path d="M35.5 27.5C32.8 25.7 28.8 25.8 26.3 28.2C23 31.3 23.8 37.5 28 39.7C31.8 41.7 36.1 40 38.4 37.1" stroke="#D4AF37" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"/>
+  </g>
+  <text x="315" y="230" fill="#F4F4F0" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="900" letter-spacing="-5">GETJACKED<tspan fill="#D4AF37">COACH</tspan></text>
+  <text x="318" y="305" fill="#8FA3AD" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="8">TRAIN SMART. GET STRONGER. TRACK PROGRESS.</text>
+  <text x="318" y="390" fill="#A5AAA6" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="500">Adaptive strength programming, PR tracking, and coach insights.</text>
+  <path d="M318 450H682" stroke="#D4AF37" stroke-width="4"/>
+  <path d="M710 450H870" stroke="#8FA3AD" stroke-width="4"/>
+</svg>

@@ -1,6 +1,7 @@
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { appNavigationLinks } from '../../utils/navigation.js';
+import Logo from '../Logo.jsx';
 
 function Navbar() {
   const { isAuthenticated, logout } = useAuth();
@@ -8,8 +9,8 @@ function Navbar() {
   return (
     <header className="sticky top-0 z-20 border-b border-[#292d2a] bg-[#090a09]/95">
       <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link to="/" className="text-lg font-semibold tracking-[-0.02em] text-[#f4f4f0]">
-          FitBit-Strength
+        <Link to="/" className="shrink-0">
+          <Logo />
         </Link>
         <div className="flex max-w-full flex-wrap items-center gap-1 text-sm font-medium">
           {isAuthenticated &&

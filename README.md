@@ -1,6 +1,6 @@
-# FitBit-Strength
+# GetJackedCoach
 
-FitBit-Strength is a full-stack MERN strength-training platform that generates personalized weekly workout programs from user-entered one-rep maxes. It securely tracks training maxes, weekly programs, personal records, progress, calendar history, analytics, templates, and coaching insights for each authenticated user.
+GetJackedCoach is a full-stack MERN strength-training platform that generates personalized weekly workout programs from user-entered one-rep maxes. It securely tracks training maxes, weekly programs, personal records, progress, calendar history, analytics, templates, and coaching insights for each authenticated user.
 
 ## Live Links
 
@@ -75,7 +75,7 @@ FitBit-Strength is a full-stack MERN strength-training platform that generates p
 ## Project Structure
 
 ```text
-FitBit-Strength/
+GetJackedCoach/
   backend/
     src/
       config/
@@ -120,8 +120,8 @@ FitBit-Strength/
 ### Clone
 
 ```bash
-git clone git@github.com:krishkpatel-hub/FITBIT.git FitBit-Strength
-cd FitBit-Strength
+git clone git@github.com:krishkpatel-hub/FITBIT.git GetJackedCoach
+cd GetJackedCoach
 ```
 
 ### Backend Setup
@@ -235,7 +235,7 @@ Core API groups:
 
 ## Design System
 
-FitBit-Strength uses a restrained dark productivity-app interface:
+GetJackedCoach uses a restrained dark productivity-app interface:
 
 - Near-black and charcoal backgrounds
 - Off-white primary text

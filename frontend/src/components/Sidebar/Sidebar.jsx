@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
 import { appNavigationLinks } from '../../utils/navigation.js';
+import Logo from '../Logo.jsx';
 
 function Sidebar() {
   return (
     <aside className="quiet-card" aria-label="App navigation">
-      <h2 className="font-semibold text-stone-100">FitBit-Strength</h2>
+      <Logo markClassName="h-8 w-8" />
       <nav className="mt-4 grid gap-1">
         {appNavigationLinks.map((link) => (
           <NavLink

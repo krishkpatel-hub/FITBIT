@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 
 export function usePageTitle(title) {
   useEffect(() => {
-    document.title = `${title} | FitBit-Strength`;
+    document.title = `${title} | GetJackedCoach`;
   }, [title]);
 }
-

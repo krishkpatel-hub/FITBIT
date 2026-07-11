@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import Logo from '../../components/Logo.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 function Register() {
@@ -44,6 +45,7 @@ function Register() {
 
   return (
     <section className="mx-auto max-w-md quiet-card">
+      <Logo className="mb-6" />
       <h1 className="text-2xl font-bold text-stone-50">Register</h1>
       <p className="mt-2 text-sm text-stone-400">Create your strength tracking account.</p>
 

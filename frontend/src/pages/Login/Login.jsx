@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import Logo from '../../components/Logo.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 function Login() {
@@ -44,8 +45,9 @@ function Login() {
 
   return (
     <section className="mx-auto max-w-md quiet-card">
+      <Logo className="mb-6" />
       <h1 className="text-2xl font-bold text-stone-50">Login</h1>
-      <p className="mt-2 text-sm text-stone-400">Sign in to access your FitBit-Strength dashboard.</p>
+      <p className="mt-2 text-sm text-stone-400">Sign in to access your GetJackedCoach dashboard.</p>
 
       {error && <p className="mt-4 status-error">{error}</p>}
 
