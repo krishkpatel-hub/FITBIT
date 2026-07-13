@@ -13,7 +13,7 @@ function Home() {
       </Suspense>
       <div className="relative z-10 flex min-h-[520px] flex-col justify-between gap-12">
         <div className="max-w-4xl">
-          <Logo className="mb-8" markClassName="h-12 w-12" />
+          <Logo className="mb-8" size="lg" showTagline />
           <p className="eyebrow">Strength Training Platform</p>
           <h1 className="mt-5 max-w-4xl text-5xl font-semibold tracking-[-0.045em] text-stone-50 sm:text-6xl lg:text-7xl">
             Train with numbers that actually mean something.

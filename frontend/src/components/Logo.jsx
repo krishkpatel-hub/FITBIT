@@ -1,63 +1,76 @@
-function Logo({ showWordmark = true, className = '', markClassName = 'h-9 w-9' }) {
-  return (
-    <span className={`inline-flex items-center gap-3 ${className}`} aria-label="GetJackedCoach">
-      <svg
-        className={markClassName}
-        viewBox="0 0 64 64"
-        role="img"
-        aria-hidden="true"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <rect width="64" height="64" rx="14" fill="#090A09" />
-        <path
-          d="M41.5 15H29.75C21.6 15 15 21.6 15 29.75v4.5C15 42.4 21.6 49 29.75 49H41"
-          fill="none"
-          stroke="#D4AF37"
-          strokeWidth="4"
-          strokeLinecap="square"
-          strokeLinejoin="miter"
-        />
-        <path
-          d="M43 47V19"
-          fill="none"
-          stroke="#F4F4F0"
-          strokeWidth="4"
-          strokeLinecap="square"
-        />
-        <path
-          d="M35 27L43 19L51 27"
-          fill="none"
-          stroke="#F4F4F0"
-          strokeWidth="4"
-          strokeLinecap="square"
-          strokeLinejoin="miter"
-        />
-        <path
-          d="M18 35H50"
-          fill="none"
-          stroke="#8FA3AD"
-          strokeWidth="3"
-          strokeLinecap="square"
-        />
-        <path d="M13 28V42M51 28V42" stroke="#D4AF37" strokeWidth="4" strokeLinecap="square" />
-        <path
-          d="M35.5 27.5C32.8 25.7 28.8 25.8 26.3 28.2C23 31.3 23.8 37.5 28 39.7C31.8 41.7 36.1 40 38.4 37.1"
-          fill="none"
-          stroke="#D4AF37"
-          strokeWidth="3"
-          strokeLinecap="square"
-          strokeLinejoin="miter"
-        />
-      </svg>
+const sizeClasses = {
+  sm: {
+    mark: 'h-7 w-7',
+    wordmark: 'text-[0.8rem]',
+    tagline: 'text-[0.48rem]',
+  },
+  md: {
+    mark: 'h-9 w-9',
+    wordmark: 'text-[0.95rem]',
+    tagline: 'text-[0.56rem]',
+  },
+  lg: {
+    mark: 'h-12 w-12',
+    wordmark: 'text-[1.15rem]',
+    tagline: 'text-[0.64rem]',
+  },
+};
 
-      {showWordmark && (
+function GorillaMark({ className = 'h-9 w-9' }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 64 64"
+      role="img"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect width="64" height="64" rx="14" fill="#0D0D0D" />
+      <path d="M32 7L47 12L57 27L54 44L43 57H21L10 44L7 27L17 12L32 7Z" fill="#D4AF37" />
+      <path d="M17 24L27 15H37L47 24L51 38L41 51H23L13 38L17 24Z" fill="#0D0D0D" />
+      <path d="M21 27L30 24L27 32H18L21 27Z" fill="#FFFFFF" />
+      <path d="M43 27L34 24L37 32H46L43 27Z" fill="#FFFFFF" />
+      <path d="M23 39L29 34H35L41 39L37 50H27L23 39Z" fill="#D4AF37" />
+      <path d="M29 40H35L37 45H27L29 40Z" fill="#0D0D0D" />
+      <path d="M25 51H39L36 56H28L25 51Z" fill="#FFFFFF" />
+      <path d="M7 29L16 31L14 42L8 41L7 29Z" fill="#D4AF37" />
+      <path d="M57 29L48 31L50 42L56 41L57 29Z" fill="#D4AF37" />
+      <path d="M27 17L20 24L14 23L18 15L27 17Z" fill="#D4AF37" />
+      <path d="M37 17L44 24L50 23L46 15L37 17Z" fill="#D4AF37" />
+    </svg>
+  );
+}
+
+function Logo({
+  iconOnly = false,
+  showWordmark = true,
+  showTagline = false,
+  size = 'md',
+  className = '',
+  markClassName,
+  ariaLabel = 'GetJackedCoach',
+}) {
+  const resolvedSize = sizeClasses[size] || sizeClasses.md;
+  const shouldShowWordmark = showWordmark && !iconOnly;
+
+  return (
+    <span className={`inline-flex items-center gap-3 ${className}`} aria-label={ariaLabel}>
+      <GorillaMark className={markClassName || resolvedSize.mark} />
+
+      {shouldShowWordmark && (
         <span className="leading-none">
-          <span className="block text-[0.95rem] font-black uppercase tracking-[-0.04em] text-[#F4F4F0]">
+          <span
+            className={`block font-black uppercase tracking-[-0.045em] text-[#FFFFFF] ${resolvedSize.wordmark}`}
+          >
             GETJACKED<span className="text-[#D4AF37]">COACH</span>
           </span>
-          <span className="mt-1 hidden text-[0.56rem] font-semibold uppercase tracking-[0.22em] text-[#8FA3AD] sm:block">
-            Train Smart. Get Stronger.
-          </span>
+          {showTagline && (
+            <span
+              className={`mt-1 hidden font-semibold tracking-[0.16em] text-[#8FA3AD] sm:block ${resolvedSize.tagline}`}
+            >
+              Adaptive Strength Programming
+            </span>
+          )}
         </span>
       )}
     </span>
