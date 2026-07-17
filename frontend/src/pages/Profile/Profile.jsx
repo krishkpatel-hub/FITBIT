@@ -4,7 +4,6 @@ import { trainingMaxService } from '../../services/trainingMaxService.js';
 import { workoutService } from '../../services/workoutService.js';
 
 const profileFields = {
-  height: '',
   weight: '',
   age: '',
   gender: '',
@@ -12,7 +11,8 @@ const profileFields = {
   activityLevel: '',
 };
 
-const numberFields = new Set(['height', 'weight', 'age']);
+const numberFields = new Set(['weight', 'age']);
+const poundsPerKilogram = 2.2046226218;
 const liftLabels = {
   squat: 'Squat',
   bench: 'Bench',
@@ -20,9 +20,60 @@ const liftLabels = {
   overhead_press: 'Overhead Press',
 };
 
+const splitHeight = (totalInches) => {
+  const height = Number(totalInches || 0);
+
+  if (!height) {
+    return { feet: '', inches: '' };
+  }
+
+  return {
+    feet: String(Math.floor(height / 12)),
+    inches: String(height % 12),
+  };
+};
+
+const formatHeight = ({ feet, inches }) => {
+  if (feet === '' && inches === '') {
+    return 'Not set';
+  }
+
+  return `${feet || 0}'${inches || 0}"`;
+};
+
+const poundsToDisplayWeight = (weight, unit) => {
+  const pounds = Number(weight || 0);
+
+  if (!pounds) {
+    return '';
+  }
+
+  if (unit === 'kg') {
+    return String(Math.round((pounds / poundsPerKilogram) * 10) / 10);
+  }
+
+  return String(pounds);
+};
+
+const displayWeightToPounds = (weight, unit) => {
+  const value = Number(weight);
+
+  if (!value) {
+    return 0;
+  }
+
+  if (unit === 'kg') {
+    return Math.round(value * poundsPerKilogram);
+  }
+
+  return value;
+};
+
 function Profile() {
   const { user, updateProfile } = useAuth();
   const [formData, setFormData] = useState(profileFields);
+  const [heightFields, setHeightFields] = useState({ feet: '', inches: '' });
+  const [weightUnit, setWeightUnit] = useState('lb');
   const [summary, setSummary] = useState({
     trainingMaxes: [],
     currentWeek: 1,
@@ -40,10 +91,12 @@ function Profile() {
 
     setFormData(
       Object.keys(profileFields).reduce((fields, field) => {
-        fields[field] = user[field] ?? '';
+        fields[field] = field === 'weight' ? poundsToDisplayWeight(user[field], weightUnit) : user[field] ?? '';
         return fields;
       }, {}),
     );
+
+    setHeightFields(splitHeight(user.height));
   }, [user]);
 
   useEffect(() => {
@@ -85,21 +138,81 @@ function Profile() {
     }));
   };
 
-  const buildProfilePayload = () =>
-    Object.entries(formData).reduce((payload, [key, value]) => {
-      if (value === '') {
-        payload[key] = numberFields.has(key) ? 0 : '';
-        return payload;
+  const handleHeightChange = (event) => {
+    const { name, value } = event.target;
+    setHeightFields((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleWeightUnitChange = (event) => {
+    const nextUnit = event.target.value;
+    const pounds = displayWeightToPounds(formData.weight, weightUnit);
+
+    setWeightUnit(nextUnit);
+    setFormData((current) => ({
+      ...current,
+      weight: poundsToDisplayWeight(pounds, nextUnit),
+    }));
+  };
+
+  const validateMeasurements = () => {
+    const validationErrors = [];
+    const hasHeight = heightFields.feet !== '' || heightFields.inches !== '';
+    const feet = Number(heightFields.feet);
+    const inches = Number(heightFields.inches || 0);
+    const weight = Number(formData.weight);
+
+    if (formData.weight !== '' && (!Number.isFinite(weight) || weight <= 0)) {
+      validationErrors.push('Weight must be a positive number.');
+    }
+
+    if (hasHeight) {
+      if (!Number.isInteger(feet) || feet < 3 || feet > 8) {
+        validationErrors.push('Feet must be a whole number from 3 through 8.');
       }
 
-      payload[key] = numberFields.has(key) ? Number(value) : value;
-      return payload;
+      if (!Number.isInteger(inches) || inches < 0 || inches > 11) {
+        validationErrors.push('Inches must be a whole number from 0 through 11.');
+      }
+    }
+
+    return validationErrors;
+  };
+
+  const buildProfilePayload = () => {
+    const payload = Object.entries(formData).reduce((profilePayload, [key, value]) => {
+      if (value === '') {
+        profilePayload[key] = numberFields.has(key) ? 0 : '';
+        return profilePayload;
+      }
+
+      profilePayload[key] = numberFields.has(key) ? Number(value) : value;
+      return profilePayload;
     }, {});
+
+    payload.weight = displayWeightToPounds(formData.weight, weightUnit);
+    payload.height =
+      heightFields.feet === '' && heightFields.inches === ''
+        ? 0
+        : Number(heightFields.feet) * 12 + Number(heightFields.inches || 0);
+
+    return payload;
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
+
+    const validationErrors = validateMeasurements();
+
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(' '));
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -186,29 +299,72 @@ function Profile() {
             </select>
           </label>
 
-          <label className="block">
-            <span className="text-sm font-medium text-stone-300">Height</span>
-            <input
-              type="number"
-              name="height"
-              min="0"
-              value={formData.height}
-              onChange={handleChange}
-              className="form-field"
-            />
-          </label>
+          <fieldset className="block">
+            <legend className="text-sm font-medium text-stone-300">Height</legend>
+            <p className="mt-1 text-xs text-stone-500">Enter feet and inches</p>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <label>
+                <span className="text-xs font-medium uppercase tracking-[0.14em] text-stone-500">Feet</span>
+                <input
+                  type="number"
+                  name="feet"
+                  min="3"
+                  max="8"
+                  step="1"
+                  placeholder="5"
+                  value={heightFields.feet}
+                  onChange={handleHeightChange}
+                  className="form-field"
+                />
+              </label>
+              <label>
+                <span className="text-xs font-medium uppercase tracking-[0.14em] text-stone-500">Inches</span>
+                <input
+                  type="number"
+                  name="inches"
+                  min="0"
+                  max="11"
+                  step="1"
+                  placeholder="3"
+                  value={heightFields.inches}
+                  onChange={handleHeightChange}
+                  className="form-field"
+                />
+              </label>
+            </div>
+            <p className="mt-2 text-xs text-stone-500">Current: {formatHeight(heightFields)}</p>
+          </fieldset>
 
-          <label className="block">
-            <span className="text-sm font-medium text-stone-300">Weight</span>
-            <input
-              type="number"
-              name="weight"
-              min="0"
-              value={formData.weight}
-              onChange={handleChange}
-              className="form-field"
-            />
-          </label>
+          <fieldset className="block">
+            <legend className="text-sm font-medium text-stone-300">Weight</legend>
+            <p className="mt-1 text-xs text-stone-500">Choose lb or kg</p>
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  name="weight"
+                  min="0"
+                  step="0.1"
+                  placeholder="175"
+                  value={formData.weight}
+                  onChange={handleChange}
+                  className="form-field pr-14"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#d6b94c]">
+                  {weightUnit}
+                </span>
+              </div>
+              <select
+                value={weightUnit}
+                onChange={handleWeightUnitChange}
+                className="form-field sm:w-24"
+                aria-label="Weight unit"
+              >
+                <option value="lb">lb</option>
+                <option value="kg">kg</option>
+              </select>
+            </div>
+          </fieldset>
 
           <label className="block">
             <span className="text-sm font-medium text-stone-300">Fitness goal</span>
