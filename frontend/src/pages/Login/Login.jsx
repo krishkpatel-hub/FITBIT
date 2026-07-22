@@ -11,6 +11,7 @@ function Login() {
     password: '',
   });
   const [error, setError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   if (!authLoading && isAuthenticated) {
@@ -27,8 +28,17 @@ function Login() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (submitting) {
+      return;
+    }
+
     setError('');
+    setStatusMessage('');
     setSubmitting(true);
+    const coldStartTimer = window.setTimeout(() => {
+      setStatusMessage('Starting the server. This may take up to a minute on the first request.');
+    }, 5000);
 
     try {
       await login({
@@ -37,8 +47,20 @@ function Login() {
       });
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Unable to log in. Please check your credentials.');
+      if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+        setError('The server is taking longer than expected. Please try again.');
+      } else if (err.response?.status === 401) {
+        setError(err.response?.data?.message || 'Invalid credentials');
+      } else if (err.response?.status === 429) {
+        setError(err.response?.data?.message || 'Too many login attempts. Please try again later.');
+      } else if (!err.response) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Unable to log in. Please try again.');
+      }
     } finally {
+      window.clearTimeout(coldStartTimer);
+      setStatusMessage('');
       setSubmitting(false);
     }
   };
@@ -50,6 +72,7 @@ function Login() {
       <p className="mt-2 text-sm text-stone-400">Sign in to access your GetJackedCoach dashboard.</p>
 
       {error && <p className="mt-4 status-error">{error}</p>}
+      {statusMessage && !error && <p className="mt-4 empty-state">{statusMessage}</p>}
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <label className="block">
