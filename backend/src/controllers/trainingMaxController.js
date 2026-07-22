@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import ProgramWeek from '../models/ProgramWeek.js';
 import Recommendation from '../models/Recommendation.js';
 import TrainingMax from '../models/TrainingMax.js';
@@ -80,7 +81,7 @@ const cleanupDuplicateProgramWeeks = async (userId) => {
   });
 
   if (duplicateIds.length > 0) {
-    await ProgramWeek.deleteMany({ user: userId, _id: { $in: duplicateIds } });
+    await ProgramWeek.deleteMany({ user: userId, _id: mongoose.trusted({ $in: duplicateIds }) });
   }
 
   await Promise.all(
@@ -403,12 +404,12 @@ export const generateProgram = asyncHandler(async (req, res) => {
   if (existingProgramWeek?.workouts?.length > 0) {
     await Workout.deleteMany({
       user: req.user.id,
-      _id: { $in: existingProgramWeek.workouts.map((workout) => workout._id) },
+      _id: mongoose.trusted({ $in: existingProgramWeek.workouts.map((workout) => workout._id) }),
     });
   }
 
   await TrainingMax.updateMany(
-    { user: req.user.id, liftName: { $in: supportedLifts } },
+    { user: req.user.id, liftName: mongoose.trusted({ $in: supportedLifts }) },
     { $set: { currentWeek: requestedWeek, lastUpdated: new Date() } },
     { runValidators: true },
   );

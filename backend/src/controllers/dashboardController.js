@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import PRRecord from '../models/PRRecord.js';
 import Progress from '../models/Progress.js';
 import Recommendation from '../models/Recommendation.js';
@@ -11,6 +12,14 @@ const startOfDay = (date) => {
   const value = new Date(date);
   value.setHours(0, 0, 0, 0);
   return value;
+};
+
+const assertValidDate = (date, label) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    const error = new Error(`${label} must be a valid date`);
+    error.statusCode = 400;
+    throw error;
+  }
 };
 
 const getWeekKey = (date) => {
@@ -54,6 +63,8 @@ export const getDashboardData = asyncHandler(async (req, res) => {
   const todayStart = startOfDay(now);
   const twelveWeeksAgo = new Date(now);
   twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
+  assertValidDate(todayStart, 'Dashboard start date');
+  assertValidDate(twelveWeeksAgo, 'Dashboard volume start date');
 
   const [
     trainingMaxes,
@@ -66,11 +77,11 @@ export const getDashboardData = asyncHandler(async (req, res) => {
   ] = await Promise.all([
     TrainingMax.find(userFilter).sort({ liftName: 1 }),
     Workout.findOne({ ...userFilter, status: 'completed' }).sort({ date: -1, updatedAt: -1 }),
-    Workout.findOne({ ...userFilter, status: 'planned', date: { $gte: todayStart } }).sort({ date: 1, createdAt: 1 }),
+    Workout.findOne({ ...userFilter, status: 'planned', date: mongoose.trusted({ $gte: todayStart }) }).sort({ date: 1, createdAt: 1 }),
     Recommendation.find(userFilter).sort({ createdAt: -1 }).limit(5),
     PRRecord.find(userFilter).sort({ date: -1 }).limit(5),
     Progress.find(userFilter).sort({ date: -1 }).limit(12),
-    Workout.find({ ...userFilter, status: 'completed', date: { $gte: twelveWeeksAgo } }).sort({ date: 1 }),
+    Workout.find({ ...userFilter, status: 'completed', date: mongoose.trusted({ $gte: twelveWeeksAgo }) }).sort({ date: 1 }),
   ]);
 
   const profileSummary = {

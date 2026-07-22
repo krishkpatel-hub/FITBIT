@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 
 const allowedProfileFields = [
@@ -52,7 +53,7 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
 
   if (updates.email || updates.username) {
     const duplicateUser = await User.findOne({
-      _id: { $ne: req.user._id },
+      _id: mongoose.trusted({ $ne: req.user._id }),
       $or: [
         ...(updates.email ? [{ email: updates.email }] : []),
         ...(updates.username ? [{ username: updates.username }] : []),
