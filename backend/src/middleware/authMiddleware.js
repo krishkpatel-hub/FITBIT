@@ -3,6 +3,11 @@ import asyncHandler from 'express-async-handler';
 import User from '../models/User.js';
 
 export const protect = asyncHandler(async (req, res, next) => {
+  if (!process.env.JWT_SECRET) {
+    res.status(500);
+    throw new Error('Authentication is not configured');
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
