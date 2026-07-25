@@ -43,21 +43,35 @@ const productRows = [
   {
     title: 'Know what to train next',
     description: 'Use the Strength Program to view structured sessions, prescribed work, and progression across the program.',
-    screenshotLabel: 'Strength Program screenshot',
-    placeholderDetail: 'Replace with a safe current screenshot of the Strength Program page.',
+    image: '/screenshots/strength-program.jpg',
+    alt: 'GetJackedCoach Strength Program showing training maxes, week navigation, and a programmed workout table.',
+    width: 1040,
+    height: 720,
   },
   {
-    title: 'Track what actually happened',
-    description: 'Log completed work and review your training history, records, and trends from the dashboard and analytics views.',
-    screenshotLabel: 'Dashboard or Analytics screenshot',
-    placeholderDetail: 'Replace with a safe current screenshot of Dashboard, Progress, or Analytics.',
+    title: 'Track your progress',
+    description: 'Review strength charts, workout statistics, consistency metrics, and progress trends from the Analytics view.',
+    image: '/screenshots/analytics.jpg',
+    alt: 'GetJackedCoach Analytics page with strength progress charts, workout statistics, and consistency metrics.',
+    width: 1040,
+    height: 720,
   },
   {
-    title: 'Train your way when needed',
+    title: 'Train your way',
+    description: 'Build reusable workout templates with your own exercises, then choose the sets, reps, and weight yourself.',
+    image: '/screenshots/templates.jpg',
+    alt: 'GetJackedCoach Workout Templates page showing starter templates, the template builder, and exercise organization.',
+    width: 1040,
+    height: 880,
+  },
+  {
+    title: 'Get coaching that evolves with your training',
     description:
-      'Build reusable workout templates with your own exercises and manually decide how many sets, reps, and how much weight to use.',
-    screenshotLabel: 'Templates screenshot',
-    placeholderDetail: 'Replace with a safe current screenshot of the Templates page.',
+      'Receive intelligent coaching insights, plateau detection, recovery recommendations, and training observations generated from your workout history.',
+    image: '/screenshots/coach.jpg',
+    alt: 'GetJackedCoach Coach Insights page with plateau warnings, priority insights, and strength recommendations.',
+    width: 1040,
+    height: 715,
   },
 ];
 
@@ -91,27 +105,18 @@ function SmallIcon() {
   );
 }
 
-function ProductPlaceholder({ label, detail, isHero = false }) {
+function ProductScreenshot({ src, alt, width = 1040, height = 720, isHero = false }) {
   return (
-    <figure
-      className={`overflow-hidden rounded-2xl border border-[#292d2a] bg-[#101312] shadow-[0_28px_80px_rgba(0,0,0,0.3)] ${
-        isHero ? 'min-h-[360px]' : 'min-h-[300px]'
-      }`}
-      aria-label={`${label} placeholder`}
-    >
-      <div className="flex items-center justify-between border-b border-[#292d2a] px-4 py-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#737a75]">Product Preview</span>
-        <span className="h-2 w-16 rounded-full bg-[#d6b94c]/70" aria-hidden="true" />
-      </div>
-      <div className="grid min-h-[inherit] place-items-center px-6 py-10 text-center">
-        <div className="max-w-sm">
-          <p className="text-lg font-semibold text-[#f4f4f0]">{label}</p>
-          <p className="mt-3 text-sm leading-6 text-[#a5aaa6]">{detail}</p>
-          <p className="mt-5 rounded-lg border border-dashed border-[#3a403b] px-4 py-3 text-xs font-medium uppercase tracking-[0.16em] text-[#737a75]">
-            Real screenshot needed
-          </p>
-        </div>
-      </div>
+    <figure className="overflow-hidden rounded-2xl border border-[#292d2a] bg-[#101312] shadow-[0_28px_80px_rgba(0,0,0,0.3)]">
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={isHero ? 'eager' : 'lazy'}
+        decoding={isHero ? 'sync' : 'async'}
+        className="h-auto w-full"
+      />
     </figure>
   );
 }
@@ -138,11 +143,12 @@ function HeroSection() {
         <p className="mt-5 text-sm leading-6 text-[#737a75]">Built for lifters who want progression, not just another workout log.</p>
       </div>
 
-      {/* TODO: Replace this placeholder with a real, non-sensitive Dashboard or Strength Program screenshot. */}
-      <ProductPlaceholder
+      <ProductScreenshot
         isHero
-        label="Dashboard or Strength Program screenshot"
-        detail="Use a current product screenshot here once safe demo data is available."
+        src="/screenshots/strength-program.jpg"
+        alt="GetJackedCoach Strength Program showing current training maxes, week navigation, and a programmed Bench Press workout."
+        width={1040}
+        height={720}
       />
     </section>
   );
@@ -213,8 +219,7 @@ function ProductPreviewSection() {
       <div className="mt-12 space-y-12">
         {productRows.map((row, index) => (
           <article key={row.title} className={`grid gap-8 lg:grid-cols-2 lg:items-center ${index % 2 === 1 ? 'lg:[&>figure]:order-2' : ''}`}>
-            {/* TODO: Replace placeholder with a real screenshot using safe demo data. */}
-            <ProductPlaceholder label={row.screenshotLabel} detail={row.placeholderDetail} />
+            <ProductScreenshot src={row.image} alt={row.alt} width={row.width} height={row.height} />
             <div className="max-w-xl">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#737a75]">0{index + 1}</p>
               <h3 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-[#f4f4f0] sm:text-3xl">{row.title}</h3>
