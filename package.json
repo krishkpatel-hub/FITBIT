@@ -1,0 +1,16 @@
+{
+  "name": "getjackedcoach",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "node scripts/lint.mjs",
+    "test": "npm --prefix backend test",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

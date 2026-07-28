@@ -43,7 +43,7 @@ app.use(mongoSanitize());
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'FitBit-Strength Backend is Live 🚀',
+    message: 'GetJackedCoach Backend is live',
     version: '1.0.0',
   });
 });
@@ -51,7 +51,7 @@ app.get('/', (req, res) => {
 app.get('/api', (req, res) => {
   res.json({
     success: true,
-    message: 'FitBit-Strength API',
+    message: 'GetJackedCoach API',
     health: '/api/health',
     routes: [
       '/api/auth',

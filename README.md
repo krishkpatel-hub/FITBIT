@@ -1,44 +1,66 @@
 # GetJackedCoach
 
-GetJackedCoach is a full-stack MERN strength-training platform that generates personalized weekly workout programs from user-entered one-rep maxes. It securely tracks training maxes, weekly programs, personal records, progress, calendar history, analytics, templates, and coaching insights for each authenticated user.
+GetJackedCoach is a full-stack MERN strength-training application for generating weekly strength programs, tracking workout history, reviewing progress, and surfacing coaching insights for authenticated users.
 
-## Live Links
+## Live Demo
 
-- Live Demo: Add after deployment
+- Frontend: https://getjackedcoach.com
 - GitHub Repository: git@github.com:krishkpatel-hub/FITBIT.git
 
-## Core Features
+## Screenshots
 
-- Secure user registration and login with JWT authentication
-- Private user-specific MongoDB data
-- One-rep-max and training-max calculations
+Current product screenshots are stored in `frontend/public/screenshots/`.
+
+- Strength Program: `frontend/public/screenshots/strength-program.jpg`
+- Analytics: `frontend/public/screenshots/analytics.jpg`
+- Workout Templates: `frontend/public/screenshots/templates.jpg`
+- Coach Insights: `frontend/public/screenshots/coach.jpg`
+
+## Engineering Highlights
+
+- Full-stack React, Express, and MongoDB architecture
+- JWT-based authentication with protected API routes
+- User-scoped Mongoose models for private training data
+- REST API organized by feature area
+- Adaptive weekly strength-program generation from user-entered maxes
+- React Router application with protected client routes
+- Axios service layer with bearer-token attachment and timeout handling
+- Responsive Tailwind CSS interface
+- Security middleware: Helmet, CORS allowlist, request body limits, NoSQL sanitization, auth rate limiting, and production-safe 500 responses
+- Vercel SPA rewrite configuration for client-side route refreshes
+- Docker Compose configuration for local containerized development
+- GitHub Actions CI for lint checks, tests, frontend build, and backend syntax build
+
+## Key Features
+
+### Implemented
+
+- Register, login, logout, current-user lookup, and profile update
+- Strength-focused profile fields with height and weight unit handling
 - Four-day weekly strength program:
   - Bench Press
   - Deadlift
   - Squat
   - Overhead Press
-- Locked weekly progression
-- New max entry before generating each new week
-- Plus-set performance tracking
+- Locked weekly progression from Week 1 through Week 4
 - One program-history record per user per week
-- Progress and training-max visualizations
-- Workout calendar
-- Personal-record tracking
-- Reusable workout templates
-- Training analytics
-- Data-driven coaching insights
-- Responsive desktop, tablet, and mobile design
+- Training-max and one-rep-max calculations
+- Workout data model and APIs used by program history, calendar, analytics, coach, and templates
+- Workout calendar and chronological training history
+- Progress log tracking for body weight, body fat, and measurements
+- Personal records center with estimated 1RM support
+- Reusable workout templates with user-controlled exercises and optional manual sets
+- Analytics dashboard for strength, volume, consistency, and PR signals
+- Smart Coach insights generated from the logged-in user's training data
+- Development-only demo seed endpoint, disabled in production
 
-## How the Program Works
+### Future Improvements
 
-1. A user creates an account and logs in.
-2. The user enters one-rep maxes for Bench Press, Deadlift, Squat, and Overhead Press.
-3. The application calculates training maxes.
-4. The application generates the current week with four training days.
-5. Future weeks remain locked.
-6. The user completes all four workouts.
-7. The application asks for updated maxes before generating the next week.
-8. Program history stores one weekly max record per user.
+- Add a password reset flow
+- Add refresh-token or HttpOnly-cookie auth hardening
+- Add broader automated integration tests
+- Add screenshot fixtures with safe demo data
+- Add role-based moderation/admin tools if the project expands beyond single-user ownership
 
 ## Tech Stack
 
@@ -47,35 +69,74 @@ GetJackedCoach is a full-stack MERN strength-training platform that generates pe
 - React
 - Vite
 - Tailwind CSS
-- Axios
 - React Router
+- Axios
 - Recharts
 - Framer Motion
-- Three.js / React Three Fiber
 
 ### Backend
 
 - Node.js
 - Express.js
-- MongoDB Atlas
 - Mongoose
-- JWT
-- bcrypt
-- express-async-handler
+- JSON Web Tokens
+- bcryptjs
+- Helmet
+- express-rate-limit
+- express-mongo-sanitize
+- compression
+- multer and Cloudinary configuration hooks
 
-## Architecture
+### Database
 
-- React frontend for UI and client-side routing
-- Axios service layer for backend communication
-- Express REST API for authentication, program generation, training data, progress, records, templates, analytics, and coaching data
-- MongoDB Atlas for cloud persistence
-- JWT middleware for authentication and user isolation
-- Mongoose models scoped by `user` for private user-owned data
+- MongoDB Atlas
+
+### Deployment
+
+- Frontend configuration: Vercel SPA rewrites in `frontend/vercel.json`
+- Backend configuration: Express server reads `PORT` from environment variables and exposes health endpoints
+
+### Containerisation
+
+- Docker Compose is available for local frontend/backend development
+
+### Testing
+
+- Node.js built-in test runner for backend utility tests
+
+### CI
+
+- GitHub Actions workflow in `.github/workflows/ci.yml`
+
+## Architecture Overview
+
+### Frontend
+
+The frontend is a Vite React app. `frontend/src/App.jsx` defines public and protected routes. `MainLayout` provides the shared shell, and feature pages call backend APIs through service modules in `frontend/src/services/`.
+
+### Backend
+
+The backend is an Express API. `backend/src/app.js` configures middleware, health endpoints, routes, and centralized error handling. `backend/src/server.js` loads environment variables, connects to MongoDB, and starts the server.
+
+### Authentication Flow
+
+Users register or log in through `/api/auth`. The backend verifies credentials, hashes passwords with bcrypt, signs JWTs with `JWT_SECRET`, and returns a token. The frontend stores the token in `localStorage` for this MVP and attaches it to API requests with an Axios interceptor. Protected backend routes populate `req.user` through JWT middleware.
+
+### API Layer
+
+Controllers handle request validation and feature behavior. Routes stay grouped by domain: auth, users, training maxes, workouts, templates, progress, PRs, dashboard, recommendations, and coach insights.
+
+### Database
+
+MongoDB data is modeled with Mongoose. User-created resources include a `user` reference so queries can remain scoped to the authenticated user.
 
 ## Project Structure
 
 ```text
 GetJackedCoach/
+  .github/
+    ISSUE_TEMPLATE/
+    workflows/
   backend/
     src/
       config/
@@ -87,12 +148,12 @@ GetJackedCoach/
       utils/
       app.js
       server.js
+    test/
     package.json
-    nodemon.json
   frontend/
     public/
+      screenshots/
     src/
-      assets/
       components/
       context/
       hooks/
@@ -104,18 +165,43 @@ GetJackedCoach/
       App.jsx
       main.jsx
     package.json
-    vite.config.js
+    vercel.json
+  scripts/
   docker-compose.yml
   README.md
 ```
 
-## Local Development
+## API Overview
+
+Most API responses use JSON. Private endpoints require:
+
+```http
+Authorization: Bearer <jwt>
+```
+
+API groups:
+
+- `GET /` and `GET /api/health` for backend health checks
+- `/api/auth` for registration, login, current user, and logout
+- `/api/users` for profile lookup and updates
+- `/api/training-maxes` for training maxes, weekly program generation, program weeks, and progression updates
+- `/api/workouts` for workout records and duplication
+- `/api/templates` for reusable workout templates and starting planned workouts from templates
+- `/api/exercises` for user-created exercise records
+- `/api/progress` for progress logs
+- `/api/prs` for personal records
+- `/api/recommendations` for recommendation records
+- `/api/dashboard` for dashboard summary data
+- `/api/coach/insights` for generated coach insights
+- `/api/demo/seed` for development-only demo data
+
+## Local Setup
 
 ### Prerequisites
 
-- Node.js
+- Node.js 20 or newer
 - npm
-- MongoDB Atlas account
+- MongoDB Atlas database
 
 ### Clone
 
@@ -124,168 +210,139 @@ git clone git@github.com:krishkpatel-hub/FITBIT.git GetJackedCoach
 cd GetJackedCoach
 ```
 
-### Backend Setup
-
-Create `backend/.env`:
-
-```env
-PORT=3000
-MONGO_URI=your_mongodb_atlas_connection_string
-JWT_SECRET=your_jwt_secret
-NODE_ENV=development
-```
-
-Install and run the backend:
+### Backend
 
 ```bash
 cd backend
+cp .env.example .env
 npm install
 npm run dev
 ```
 
-The backend runs on:
+The backend defaults to:
 
 ```text
 http://localhost:3000
 ```
 
-### Frontend Setup
-
-Install and run the frontend:
+### Frontend
 
 ```bash
 cd frontend
+cp .env.example .env
 npm install
 npm run dev -- --port 5174
 ```
 
-The frontend runs on:
+The frontend defaults to:
 
 ```text
 http://localhost:5174
 ```
 
-## Docker Development
+## Environment Variables
 
-A `docker-compose.yml` file is included for local container-based development.
+Reference placeholders are available in `.env.example`, `backend/.env.example`, and `frontend/.env.example`.
+
+### Backend
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `PORT` | Yes | Backend port. |
+| `NODE_ENV` | Yes | Controls development-only routes and production error masking. |
+| `CLIENT_URL` | Yes | Comma-separated allowed frontend origins for CORS. |
+| `MONGO_URI` | Yes | MongoDB Atlas connection string. |
+| `JWT_SECRET` | Yes | Secret used to sign and verify JWTs. |
+| `JWT_EXPIRES_IN` | No | JWT lifetime. Defaults to `30d`. |
+| `CLOUDINARY_CLOUD_NAME` | No | Cloudinary upload configuration. |
+| `CLOUDINARY_API_KEY` | No | Cloudinary upload configuration. |
+| `CLOUDINARY_API_SECRET` | No | Cloudinary upload configuration. |
+
+### Frontend
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `VITE_API_URL` | Yes | Backend base URL without `/api`. |
+
+## Docker
+
+`docker-compose.yml` runs both services for local development:
 
 ```bash
 docker compose up
 ```
 
-The compose setup uses `backend/.env` for backend environment variables.
+The backend service reads `backend/.env`. The frontend service runs Vite on `0.0.0.0`.
 
-## API Overview
+## Testing
 
-All private endpoints require:
-
-```http
-Authorization: Bearer <jwt>
-```
-
-Core API groups:
-
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `PUT /api/users/profile`
-- `GET /api/dashboard`
-- `GET /api/coach/insights`
-- `GET /api/training-maxes`
-- `GET /api/training-maxes/program-weeks`
-- `POST /api/training-maxes/generate-program`
-- `POST /api/training-maxes/update-progression`
-- `GET /api/workouts`
-- `PUT /api/workouts/:id`
-- `POST /api/workouts/:id/duplicate`
-- `GET /api/templates`
-- `POST /api/templates/:id/start-workout`
-- `GET /api/progress`
-- `GET /api/prs`
-- `POST /api/demo/seed` development only
-
-## Main Frontend Routes
-
-- `/`
-- `/login`
-- `/register`
-- `/dashboard`
-- `/strength-program`
-- `/progress`
-- `/calendar`
-- `/prs`
-- `/analytics`
-- `/coach`
-- `/templates`
-- `/profile`
-
-## Environment Notes
-
-- `backend/.env` is required locally and is intentionally ignored by Git.
-- No `.env.example` file is currently included.
-- MongoDB Atlas must allow connections from your current IP address.
-- JWTs are stored in `localStorage` for this MVP.
-- The development-only demo seed endpoint is disabled when `NODE_ENV=production`.
-
-## Deployment Notes
-
-- No production deployment configuration is currently committed.
-- Add the live frontend and backend URLs after deployment.
-- Update the frontend API base URL before deploying if the backend is not running at `http://localhost:3000/api`.
-
-## Design System
-
-GetJackedCoach uses a restrained dark productivity-app interface:
-
-- Near-black and charcoal backgrounds
-- Off-white primary text
-- Muted gray secondary text
-- Restrained gold and green accents
-- Subtle borders instead of glow effects
-- Compact, readable layouts
-- No neon colors, aurora backgrounds, emoji decoration, or purple gradients
-
-Navigation order:
-
-Dashboard, Strength Program, Progress, Calendar, PRs, Analytics, Coach, Templates, Profile.
-
-## Demo Flow
-
-1. Register or log in.
-2. Open Strength Program.
-3. Enter one-rep maxes for Bench Press, Deadlift, Squat, and Overhead Press.
-4. Generate Week 1.
-5. Complete all four training days.
-6. Enter updated maxes to unlock and generate the next week.
-7. Review progress in Dashboard, Calendar, PRs, Analytics, and Coach.
-
-## Verification
-
-Frontend production build:
+Run all repository checks from the root:
 
 ```bash
-cd frontend
+npm run lint
+npm run test
 npm run build
 ```
 
-Backend import check:
+Individual commands:
 
 ```bash
-cd backend
-node -e "import('./src/app.js').then(() => console.log('backend app imports cleanly'))"
+npm --prefix backend test
+npm --prefix frontend run build
+npm --prefix backend run build
 ```
 
-## Screenshots
+## Security Considerations
 
-Add screenshots after deployment:
+Implemented protections:
 
-- Home
-- Dashboard
-- Strength Program
-- Calendar
-- Analytics
-- Coach
+- Password hashing with bcrypt
+- JWT signing and verification
+- Auth middleware for protected API routes
+- User-scoped MongoDB queries for user-created data
+- Helmet security headers
+- CORS allowlist through `CLIENT_URL`
+- Request body size limits
+- NoSQL sanitization
+- Rate limiting on login and registration
+- Production-safe 500 error responses
+- `.env` and generated files ignored by Git
 
-## Resume Bullet
+Known limitations:
 
-Built a full-stack MERN strength-training platform with JWT authentication, user-scoped MongoDB data models, adaptive weekly strength programming, locked progression, program history, progress tracking, PR tracking, Recharts analytics, and data-driven coaching insights.
+- JWTs are stored in `localStorage`, which is a practical MVP choice but weaker than an HttpOnly-cookie or refresh-token design.
+- Password reset is not implemented.
+- The security report notes that old credentials appeared in Git history and should be rotated before production use.
+- Automated tests are currently lightweight and do not cover every API route.
+
+## Known Limitations
+
+- The GitHub repository name still references the original project name.
+- The frontend uses the configured `VITE_API_URL`; production deployments must set it correctly.
+- The backend requires a reachable MongoDB Atlas cluster.
+- Cloudinary configuration exists, but image upload workflows are not a primary documented feature.
+- Integration and end-to-end tests are not yet implemented.
+
+## Future Improvements
+
+- Rename the GitHub repository to `get-jacked-coach`
+- Add a full screenshot set under a dedicated `docs/images/` directory
+- Add API integration tests with a test database
+- Add frontend component or route tests
+- Add a password reset flow
+- Add stronger token storage for production
+- Add automated dependency/security scanning in CI
+
+## Recommended GitHub Metadata
+
+Suggested repository description:
+
+```text
+MERN strength-training app with adaptive weekly programs, workout history, analytics, templates, and coach insights.
+```
+
+Suggested topics:
+
+```text
+mern, react, vite, express, mongodb, mongoose, jwt-authentication, fitness, strength-training, tailwindcss
+```

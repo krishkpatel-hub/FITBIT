@@ -1,14 +1,14 @@
 # Security Report
 
-Date: 2026-07-22
+Date: 2026-07-28
 
-Scope: full repository audit for GetJackedCoach / FitBit-Strength before production deployment.
+Scope: full repository audit for GetJackedCoach before production deployment.
 
 ## Summary
 
-The current source tree no longer contains tracked `.env` files or hardcoded production secrets. The backend now includes security headers, response compression, stricter CORS handling, request body limits, NoSQL sanitization, auth rate limiting, configurable JWT expiration, and production-safe 500 error responses.
+The current source tree does not contain tracked `.env` files or hardcoded production secrets. The backend includes security headers, response compression, CORS allowlisting, request body limits, NoSQL sanitization, auth rate limiting, configurable JWT expiration, and production-safe 500 error responses.
 
-Dependency audits now report zero known vulnerabilities for both frontend and backend.
+Dependency audits report zero high-severity vulnerabilities for both frontend and backend after this review. The frontend still reports moderate React Router advisories that should be handled with a planned router upgrade.
 
 ## Issues Found And Fixes Applied
 
@@ -27,16 +27,22 @@ Dependency audits now report zero known vulnerabilities for both frontend and ba
 | `.gitignore` did not cover several common generated/sensitive files. | Low | Added `.env.*`, `.vercel`, `coverage`, logs, `.vscode`, and `.idea`, while allowing `.env.example`. |
 | No safe environment templates existed. | Low | Added `backend/.env.example` and `frontend/.env.example` with placeholder values only. |
 | Backend dependency audit reported one low-severity `body-parser` advisory. | Low | Ran `npm audit fix`; backend audit now reports zero vulnerabilities. |
+| Frontend dependency audit reported a high-severity PostCSS advisory. | High | Ran `npm audit fix`; the frontend high-severity audit gate now passes. |
+| The repository lacked CI and review templates. | Low | Added GitHub Actions CI, Dependabot configuration, issue templates, and a pull request template. |
 
 ## Validation Results
 
 - Current tracked `.env` files: none.
 - Current source secret scan: no MongoDB URI, JWT secret, API key, OAuth secret, SMTP credential, Render token, or Vercel token found in tracked source. Placeholder env examples remain intentionally.
 - Git history secret scan: old MongoDB URI and JWT secret were found in prior commits.
-- Backend app import: passed.
+- Repository lint: passed.
+- Backend tests: passed.
+- Backend syntax build: passed for 46 files.
 - Frontend production build: passed.
-- Backend `npm audit --audit-level=high`: zero vulnerabilities.
-- Frontend `npm audit --audit-level=high`: zero vulnerabilities.
+- Backend `npm audit --audit-level=high`: passed with zero vulnerabilities.
+- Frontend `npm audit --audit-level=high`: passed with two remaining moderate React Router advisories.
+- Local frontend smoke check: `GET /` returned 200.
+- Local backend health check: `GET /api/health` returned 200.
 
 ## Authentication Review
 
@@ -66,7 +72,7 @@ Dependency audits now report zero known vulnerabilities for both frontend and ba
 5. Treat the old database password as compromised even though current files no longer contain it.
 6. Consider moving JWT storage from `localStorage` to short-lived access tokens plus Secure, HttpOnly, SameSite cookies for a stronger production auth posture.
 7. Add schema-level request validation with a library such as Zod or Joi for every write endpoint.
-8. Add automated security checks in CI: `npm audit --audit-level=high`, secret scanning, and dependency review.
+8. Add deeper automated security checks in CI, such as secret scanning and dependency review.
 9. Add a password reset flow only with rate limiting, short-lived one-time tokens, and no user enumeration.
 10. Configure production `CLIENT_URL` explicitly to the deployed frontend origin.
 11. Keep MongoDB Atlas IP/network access restrictive where possible.
@@ -74,9 +80,19 @@ Dependency audits now report zero known vulnerabilities for both frontend and ba
 ## Files Changed During This Audit
 
 - `.gitignore`
+- `.env.example`
+- `.github/dependabot.yml`
+- `.github/ISSUE_TEMPLATE/bug_report.md`
+- `.github/ISSUE_TEMPLATE/feature_request.md`
+- `.github/pull_request_template.md`
+- `.github/workflows/ci.yml`
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `README.md`
 - `backend/.env.example`
 - `backend/package.json`
 - `backend/package-lock.json`
+- `backend/test/calculate1RM.test.js`
 - `backend/src/app.js`
 - `backend/src/config/db.js`
 - `backend/src/middleware/authMiddleware.js`
@@ -85,4 +101,9 @@ Dependency audits now report zero known vulnerabilities for both frontend and ba
 - `backend/src/routes/authRoutes.js`
 - `backend/src/utils/generateToken.js`
 - `frontend/.env.example`
+- `frontend/package.json`
+- `frontend/package-lock.json`
+- `package.json`
+- `scripts/check-backend-syntax.mjs`
+- `scripts/lint.mjs`
 - `SECURITY_REPORT.md`
