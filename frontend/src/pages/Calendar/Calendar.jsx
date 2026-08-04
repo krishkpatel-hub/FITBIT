@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import CalendarGrid from '../../components/Calendar/Calendar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { workoutService } from '../../services/workoutService.js';
+import { workoutService } from '../../services/workoutService';
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 

@@ -1,4 +1,9 @@
-export const appNavigationLinks = [
+export interface NavigationLink {
+  to: string;
+  label: string;
+}
+
+export const appNavigationLinks: NavigationLink[] = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/strength-program', label: 'Strength Program' },
   { to: '/progress', label: 'Progress' },

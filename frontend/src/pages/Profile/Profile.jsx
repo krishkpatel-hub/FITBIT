@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { trainingMaxService } from '../../services/trainingMaxService.js';
-import { workoutService } from '../../services/workoutService.js';
+import { trainingMaxService } from '../../services/trainingMaxService';
+import { workoutService } from '../../services/workoutService';
 
 const profileFields = {
   weight: '',

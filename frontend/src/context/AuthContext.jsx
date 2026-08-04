@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { authService } from '../services/authService.js';
+import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = 'fitbitStrengthToken';

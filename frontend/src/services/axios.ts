@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -10,7 +10,7 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('fitbitStrengthToken');
 
   if (token) {
@@ -22,7 +22,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  (error: AxiosError) => {
     if (error.response?.status === 401) {
       window.dispatchEvent(new Event('fitbit-strength:unauthorized'));
     }

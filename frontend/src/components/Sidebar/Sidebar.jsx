@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { appNavigationLinks } from '../../utils/navigation.js';
+import { appNavigationLinks } from '../../utils/navigation';
 import Logo from '../Logo.jsx';
 
 function Sidebar() {

@@ -13,7 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { analyticsService } from '../../services/analyticsService.js';
+import { analyticsService } from '../../services/analyticsService';
 
 const liftLabels = {
   squat: 'Squat',

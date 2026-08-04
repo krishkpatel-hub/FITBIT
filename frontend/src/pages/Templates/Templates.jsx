@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { templateService } from '../../services/templateService.js';
+import { templateService } from '../../services/templateService';
 
 const today = () => new Date().toISOString().slice(0, 10);
 

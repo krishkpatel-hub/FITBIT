@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { prService } from '../../services/prService.js';
+import { prService } from '../../services/prService';
 
 const today = () => new Date().toISOString().slice(0, 10);
 

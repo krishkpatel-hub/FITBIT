@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { progressService } from '../../services/progressService.js';
+import { progressService } from '../../services/progressService';
 
 const today = () => new Date().toISOString().slice(0, 10);
 

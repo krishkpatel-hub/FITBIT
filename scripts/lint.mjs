@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const trackedFiles = execFileSync('git', ['ls-files'], { encoding: 'utf8' })
   .split('\n')
@@ -14,6 +14,10 @@ const forbiddenSecretPatterns = [
 ];
 
 for (const file of trackedFiles) {
+  if (!existsSync(file)) {
+    continue;
+  }
+
   const content = readFileSync(file, 'utf8');
 
   if (file.endsWith('.env') && !file.endsWith('.env.example')) {

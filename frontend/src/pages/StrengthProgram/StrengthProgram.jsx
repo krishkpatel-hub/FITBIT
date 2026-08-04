@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { trainingMaxService } from '../../services/trainingMaxService.js';
-import { workoutService } from '../../services/workoutService.js';
+import { trainingMaxService } from '../../services/trainingMaxService';
+import { workoutService } from '../../services/workoutService';
 
 const lifts = [
   { key: 'squat', label: 'Squat' },

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { coachService } from '../../services/coachService.js';
+import { coachService } from '../../services/coachService';
 
 const priorityOrder = {
   high: 3,

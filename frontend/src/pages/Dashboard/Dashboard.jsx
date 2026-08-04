@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import ProgressChart from '../../components/ProgressChart/ProgressChart.jsx';
 import WorkoutCard from '../../components/WorkoutCard/WorkoutCard.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { coachService } from '../../services/coachService.js';
-import { dashboardService } from '../../services/dashboardService.js';
-import { demoService } from '../../services/demoService.js';
-import { trainingMaxService } from '../../services/trainingMaxService.js';
+import { coachService } from '../../services/coachService';
+import { dashboardService } from '../../services/dashboardService';
+import { demoService } from '../../services/demoService';
+import { trainingMaxService } from '../../services/trainingMaxService';
 
 const lifts = [
   { key: 'squat', label: 'Squat' },

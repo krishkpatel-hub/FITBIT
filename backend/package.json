@@ -5,10 +5,11 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "build": "node ../scripts/check-backend-syntax.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && node ../scripts/check-backend-syntax.mjs",
     "dev": "nodemon",
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --import tsx --test"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -26,6 +27,13 @@
     "multer": "^2.2.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.7"
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.1.2",
+    "nodemon": "^3.1.7",
+    "tsx": "^4.23.5",
+    "typescript": "^7.0.2"
   }
 }
