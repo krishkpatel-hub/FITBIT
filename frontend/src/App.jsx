@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout.jsx';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute.jsx';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner.jsx';
@@ -15,7 +15,6 @@ import Profile from './pages/Profile/Profile.jsx';
 import NotFound from './pages/NotFound/NotFound.jsx';
 
 const Analytics = lazy(() => import('./pages/Analytics/Analytics.jsx'));
-const PRCenter = lazy(() => import('./pages/PRCenter/PRCenter.jsx'));
 const Coach = lazy(() => import('./pages/Coach/Coach.jsx'));
 
 function App() {
@@ -47,14 +46,7 @@ function App() {
           <Route path="/templates" element={<Templates />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/progress" element={<Progress />} />
-          <Route
-            path="/prs"
-            element={
-              <Suspense fallback={<LoadingSpinner />}>
-                <PRCenter />
-              </Suspense>
-            }
-          />
+          <Route path="/prs" element={<Navigate to="/progress?section=personal-records" replace />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
         <Route path="*" element={<NotFound />} />
