@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProgressChart from '../../components/ProgressChart/ProgressChart.jsx';
 import WorkoutCard from '../../components/WorkoutCard/WorkoutCard.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -40,6 +40,7 @@ const insightPriority = {
 
 function Dashboard() {
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [coachInsights, setCoachInsights] = useState([]);
   const [trainingMaxes, setTrainingMaxes] = useState([]);
@@ -52,6 +53,7 @@ function Dashboard() {
   const [programWeek, setProgramWeek] = useState('1');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generatingProgram, setGeneratingProgram] = useState(false);
   const [seedingDemo, setSeedingDemo] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -216,16 +218,24 @@ function Dashboard() {
       return;
     }
 
-    setSaving(true);
+    setGeneratingProgram(true);
 
     try {
       const response = await trainingMaxService.generateProgram({ week: Number(programWeek) });
-      setSuccess(`Generated ${response.data.length} workouts for week ${programWeek}.`);
+      const workoutsGenerated = response.data?.workouts?.length || response.data?.programWeek?.workouts?.length || 4;
+
+      setSuccess(`Week ${programWeek} generated successfully.`);
       await loadDashboard();
+      navigate('/strength-program', {
+        state: {
+          generatedWeek: Number(programWeek),
+          workoutsGenerated,
+        },
+      });
     } catch (err) {
       setError(await handleApiError(err, 'Unable to generate program.'));
     } finally {
-      setSaving(false);
+      setGeneratingProgram(false);
     }
   };
 
@@ -416,12 +426,17 @@ function Dashboard() {
                     <button
                       type="button"
                       onClick={generateProgram}
-                      disabled={saving || trainingMaxes.length === 0}
+                      disabled={generatingProgram || saving || trainingMaxes.length === 0}
                       className="btn-primary"
                     >
-                      Generate Workouts
+                      {generatingProgram ? `Generating Week ${programWeek}...` : 'Generate Workouts'}
                     </button>
                   </div>
+                  <p className="mt-4 text-sm text-stone-500">
+                    {trainingMaxes.length === lifts.length
+                      ? '4 / 4 lifts configured. Generate your weekly workouts when ready.'
+                      : `${trainingMaxes.length} / 4 lifts configured. Save all four lifts for the full weekly program.`}
+                  </p>
                 </div>
 
                 <form onSubmit={updateProgression} className="quiet-card">

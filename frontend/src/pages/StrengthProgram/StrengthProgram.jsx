@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { trainingMaxService } from '../../services/trainingMaxService';
 import { workoutService } from '../../services/workoutService';
@@ -70,10 +70,12 @@ const getActiveProgramWeekNumber = (programWeeks) => {
 
 function StrengthProgram() {
   const { logout } = useAuth();
+  const location = useLocation();
+  const generatedWeekFromNavigation = Number(location.state?.generatedWeek || 1);
   const [trainingMaxes, setTrainingMaxes] = useState([]);
   const [programWeeks, setProgramWeeks] = useState([]);
   const [oneRepMaxes, setOneRepMaxes] = useState(emptyOneRepMaxes);
-  const [programWeek, setProgramWeek] = useState('1');
+  const [programWeek, setProgramWeek] = useState(String(generatedWeekFromNavigation >= 1 && generatedWeekFromNavigation <= 4 ? generatedWeekFromNavigation : 1));
   const [generatedWorkouts, setGeneratedWorkouts] = useState([]);
   const [activeWorkoutIndex, setActiveWorkoutIndex] = useState(0);
   const [progressionForm, setProgressionForm] = useState({
@@ -140,12 +142,19 @@ function StrengthProgram() {
 
   const programWeekOptions = [1, 2, 3, 4].map((week) => ({
     week,
-    label: week === 4 ? 'Week 4 Deload' : `Week ${week}`,
+    label: week === 4 ? 'Week 4' : `Week ${week}`,
+    suffix: week === 4 ? 'Deload' : '',
     status: isProgramWeekComplete(programWeeks.find((entry) => Number(entry.week) === week))
       ? 'Completed'
       : week === activeProgramWeekNumber
         ? 'Current'
-        : `Locked until Week ${week - 1} complete`,
+        : 'Locked',
+    detail:
+      week > activeProgramWeekNumber
+        ? `Unlocks after Week ${week - 1} is completed.`
+        : week === 4
+          ? 'Deload week'
+          : '',
     locked: week > activeProgramWeekNumber,
   }));
 
@@ -532,7 +541,7 @@ function StrengthProgram() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {lifts.map((lift) => {
                 const trainingMax = trainingMaxByLift[lift.key];
                 const history = trainingMax?.history || [];
@@ -573,8 +582,8 @@ function StrengthProgram() {
             </div>
           </section>
 
-          <section className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]" aria-labelledby="program-overview-heading">
-            <div>
+          <section className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]" aria-labelledby="program-overview-heading">
+            <div className="min-w-0">
               <h2 id="program-overview-heading" className="section-title">
                 Program Overview
               </h2>
@@ -591,7 +600,7 @@ function StrengthProgram() {
                 <p className="empty-state mt-4">Enter fresh maxes to generate Week {programWeek}.</p>
               )}
 
-              <div className="mt-6 space-y-3">
+              <div className="mt-6 flex gap-3 overflow-x-auto pb-2 lg:block lg:space-y-3 lg:overflow-visible lg:pb-0">
                 {programWeekOptions.map((week) => (
                   <button
                     key={week.week}
@@ -603,7 +612,7 @@ function StrengthProgram() {
                     }}
                     disabled={week.locked}
                     aria-disabled={week.locked}
-                    className={`flex w-full items-center justify-between border-l px-4 py-3 text-left transition-colors ${
+                    className={`min-w-[196px] rounded-lg border border-l-4 px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300/40 lg:w-full lg:min-w-0 lg:rounded-none lg:border-y-0 lg:border-r-0 ${
                       week.locked
                         ? 'cursor-not-allowed border-stone-900 text-stone-700'
                         : week.status === 'Current'
@@ -611,8 +620,10 @@ function StrengthProgram() {
                         : 'border-stone-800 text-stone-400 hover:border-stone-600 hover:bg-stone-900/30'
                     }`}
                   >
-                    <span className="font-medium">{week.label}</span>
-                    <span className="text-xs uppercase tracking-[0.18em]">{week.status}</span>
+                    <span className="block font-medium leading-6">{week.label}</span>
+                    {week.suffix && <span className="mt-1 block text-xs uppercase tracking-[0.16em] text-stone-500">{week.suffix}</span>}
+                    <span className="mt-2 block text-xs font-semibold uppercase leading-5 tracking-[0.14em]">{week.status}</span>
+                    {week.detail && <span className="mt-1 block whitespace-normal text-xs leading-5 text-stone-500">{week.detail}</span>}
                   </button>
                 ))}
               </div>
@@ -632,37 +643,39 @@ function StrengthProgram() {
               </div>
             </div>
 
-            <section className="quiet-card" aria-labelledby="today-workout-heading">
+            <section className="quiet-card min-w-0" aria-labelledby="today-workout-heading">
               {!todaysWorkout ? (
                 <p className="empty-state mt-6">Generate your weekly program to load today’s training plan.</p>
               ) : (
-                <div className="grid gap-6 lg:grid-cols-[210px_1fr]">
-                  <nav className="space-y-2" aria-label="Generated training days">
+                <div className="grid gap-6 xl:grid-cols-[210px_minmax(0,1fr)]">
+                  <div className="min-w-0">
                     <p className="eyebrow">Training Days</p>
-                    {activeWeekWorkouts.map((workout, index) => {
-                      const isActive = index === activeWorkoutIndex;
+                    <nav className="mt-3 flex gap-2 overflow-x-auto pb-2 xl:block xl:space-y-2 xl:overflow-visible xl:pb-0" aria-label="Generated training days">
+                      {activeWeekWorkouts.map((workout, index) => {
+                        const isActive = index === activeWorkoutIndex;
 
-                      return (
-                        <button
-                          key={workout._id || `${workout.title}-${index}`}
-                          type="button"
-                          onClick={() => setActiveWorkoutIndex(index)}
-                          className={`w-full border-l px-3 py-3 text-left transition-colors ${
-                            isActive
-                              ? 'border-stone-100 bg-stone-900/50 text-stone-50'
-                              : 'border-stone-800 text-stone-400 hover:border-stone-600 hover:bg-stone-900/30'
-                          }`}
-                        >
-                          <span className="block text-sm font-semibold">Day {workout.programDay || index + 1}</span>
-                          <span className="mt-1 block text-xs uppercase tracking-[0.14em]">
-                            {getWorkoutDayLabel(workout, index)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </nav>
+                        return (
+                          <button
+                            key={workout._id || `${workout.title}-${index}`}
+                            type="button"
+                            onClick={() => setActiveWorkoutIndex(index)}
+                            className={`min-w-[160px] border-l px-3 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300/40 xl:w-full xl:min-w-0 ${
+                              isActive
+                                ? 'border-stone-100 bg-stone-900/50 text-stone-50'
+                                : 'border-stone-800 text-stone-400 hover:border-stone-600 hover:bg-stone-900/30'
+                            }`}
+                          >
+                            <span className="block text-sm font-semibold">Day {workout.programDay || index + 1}</span>
+                            <span className="mt-1 block text-xs uppercase leading-5 tracking-[0.14em]">
+                              {getWorkoutDayLabel(workout, index)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </nav>
+                  </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
                         <p className="eyebrow">Today’s Workout</p>
@@ -671,8 +684,8 @@ function StrengthProgram() {
                         </h2>
                         {todaysWorkout.notes && <p className="mt-2 text-sm leading-6 text-stone-400">{todaysWorkout.notes}</p>}
                       </div>
-                      <div className="text-right">
-                      <span className="rounded-md border border-stone-700 px-2 py-1 text-xs font-medium capitalize text-stone-400">
+                      <div className="text-left sm:text-right">
+                        <span className="rounded-md border border-stone-700 px-2 py-1 text-xs font-medium capitalize text-stone-400">
                           {todaysWorkout.status}
                         </span>
                         {selectedWeekReadOnly && (

@@ -4,11 +4,13 @@ import type { ApiSuccess, Id, ProgramWeek, TrainingMax, Workout } from '../types
 export type TrainingMaxRequest = Omit<Partial<TrainingMax>, '_id' | 'user'> & Pick<TrainingMax, 'liftName' | 'oneRepMax'>;
 
 export interface GenerateProgramRequest {
+  week?: number;
   weekNumber?: number;
   maxes?: Record<string, number>;
 }
 
 export interface GenerateProgramResponse {
+  programWeek?: ProgramWeek;
   week?: ProgramWeek;
   workouts?: Workout[];
   trainingMaxes?: TrainingMax[];
