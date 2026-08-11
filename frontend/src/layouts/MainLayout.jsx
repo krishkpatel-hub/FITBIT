@@ -9,7 +9,7 @@ function MainLayout() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden text-stone-100">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden text-[#f5f5f2]">
       {isAuthenticated && <DecorativeBackground />}
       <Navbar />
       <motion.main

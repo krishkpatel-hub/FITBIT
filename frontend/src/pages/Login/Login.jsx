@@ -84,7 +84,7 @@ function Login() {
             onChange={handleChange}
             required
             autoComplete="email"
-            className="mt-1 w-full rounded-md border border-stone-700 px-3 py-2 text-stone-50 outline-none focus:border-amber-300 focus:ring-1 focus:ring-amber-300/40"
+            className="form-field"
           />
         </label>
 
@@ -97,7 +97,7 @@ function Login() {
             onChange={handleChange}
             required
             autoComplete="current-password"
-            className="mt-1 w-full rounded-md border border-stone-700 px-3 py-2 text-stone-50 outline-none focus:border-amber-300 focus:ring-1 focus:ring-amber-300/40"
+            className="form-field"
           />
         </label>
 

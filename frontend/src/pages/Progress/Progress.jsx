@@ -682,7 +682,7 @@ function Progress() {
                           <button
                             type="button"
                             onClick={() => removeWorkoutExercise(exerciseIndex)}
-                            className="rounded-md border border-red-900/70 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-950/30"
+                            className="btn-danger"
                           >
                             Remove Exercise
                           </button>
@@ -733,7 +733,7 @@ function Progress() {
                                 <button
                                   type="button"
                                   onClick={() => removeWorkoutSet(exerciseIndex, setIndex)}
-                                  className="rounded-md border border-red-900/70 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-950/30"
+                                  className="btn-danger"
                                 >
                                   Remove
                                 </button>
@@ -907,7 +907,7 @@ function Progress() {
                                 <button
                                   type="button"
                                   onClick={() => deletePr(pr._id)}
-                                  className="rounded-md border border-red-900/70 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-950/30"
+                                  className="btn-danger"
                                 >
                                   Delete
                                 </button>
@@ -1084,7 +1084,7 @@ function Progress() {
                           <button
                             type="button"
                             onClick={() => deleteBodyMetrics(log._id)}
-                            className="rounded-md border border-red-900/60 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-950/40"
+                            className="btn-danger"
                           >
                             Delete
                           </button>

@@ -66,7 +66,7 @@ function WorkoutCard({
           <button
             type="button"
             onClick={() => onDelete?.(workout._id)}
-            className="rounded-md border border-red-900/70 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-950/30"
+            className="btn-danger"
           >
             Delete
           </button>

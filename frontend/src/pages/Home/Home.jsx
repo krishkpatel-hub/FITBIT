@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
 const proofItems = ['Adaptive programming', 'Workout logging', 'Progress analytics', 'Built-in coach'];
@@ -75,6 +76,13 @@ const productRows = [
   },
 ];
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0 },
+};
+
+const revealTransition = { duration: 0.32, ease: 'easeOut' };
+
 const scrollToSection = (event, selector) => {
   event.preventDefault();
   const target = document.querySelector(selector);
@@ -107,7 +115,15 @@ function SmallIcon() {
 
 function ProductScreenshot({ src, alt, width = 1040, height = 720, isHero = false }) {
   return (
-    <figure className="overflow-hidden rounded-2xl border border-[#292d2a] bg-[#101312] shadow-[0_28px_80px_rgba(0,0,0,0.3)]">
+    <motion.figure
+      className="screenshot-frame relative"
+      variants={fadeUp}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: '-80px' }}
+      transition={revealTransition}
+    >
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d4af37]/45 to-transparent" aria-hidden="true" />
       <img
         src={src}
         alt={alt}
@@ -117,14 +133,14 @@ function ProductScreenshot({ src, alt, width = 1040, height = 720, isHero = fals
         decoding={isHero ? 'sync' : 'async'}
         className="h-auto w-full"
       />
-    </figure>
+    </motion.figure>
   );
 }
 
 function HeroSection() {
   return (
     <section className="grid min-h-[calc(100vh-160px)] items-center gap-12 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:py-20">
-      <div className="max-w-2xl">
+      <motion.div className="max-w-2xl" variants={fadeUp} initial="hidden" animate="visible" transition={revealTransition}>
         <p className="eyebrow">ADAPTIVE STRENGTH PROGRAMMING</p>
         <h1 className="mt-5 text-5xl font-semibold tracking-[-0.055em] text-[#f4f4f0] sm:text-6xl lg:text-7xl">
           Stop guessing what to lift next.
@@ -141,7 +157,7 @@ function HeroSection() {
           </a>
         </div>
         <p className="mt-5 text-sm leading-6 text-[#737a75]">Built for lifters who want progression, not just another workout log.</p>
-      </div>
+      </motion.div>
 
       <ProductScreenshot
         isHero
@@ -159,7 +175,7 @@ function ProductProofStrip() {
     <section className="border-y border-[#292d2a] py-5" aria-label="Product capabilities">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {proofItems.map((item) => (
-          <div key={item} className="flex items-center gap-3 rounded-xl bg-[#0f1110] px-4 py-3">
+          <div key={item} className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-[#0f1110] px-4 py-3">
             <SmallIcon />
             <span className="text-sm font-medium text-[#f4f4f0]">{item}</span>
           </div>
@@ -179,11 +195,19 @@ function FeaturesSection() {
       />
       <div className="mt-10 grid gap-4 md:grid-cols-2">
         {features.map((feature) => (
-          <article key={feature.title} className="rounded-2xl border border-[#292d2a] bg-[#0f1110] p-6 transition hover:border-[#d6b94c]/45">
+          <motion.article
+            key={feature.title}
+            className="interactive-card"
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-60px' }}
+            transition={revealTransition}
+          >
             <SmallIcon />
             <h3 className="mt-5 text-xl font-semibold tracking-tight text-[#f4f4f0]">{feature.title}</h3>
             <p className="mt-3 text-sm leading-6 text-[#a5aaa6]">{feature.description}</p>
-          </article>
+          </motion.article>
         ))}
       </div>
     </section>
@@ -196,7 +220,7 @@ function HowItWorksSection() {
       <SectionIntro eyebrow="HOW IT WORKS" title="A clear path from your first lift to your next progression." />
       <div className="mt-10 grid gap-4 lg:grid-cols-3">
         {steps.map((step, index) => (
-          <article key={step.number} className="relative rounded-2xl border border-[#292d2a] bg-[#0f1110] p-6">
+          <article key={step.number} className="interactive-card relative">
             {index < steps.length - 1 && <span className="absolute left-[calc(100%+1rem)] top-10 hidden h-px w-8 bg-[#292d2a] lg:block" aria-hidden="true" />}
             <p className="text-sm font-semibold text-[#d6b94c]">{step.number}</p>
             <h3 className="mt-6 text-xl font-semibold tracking-tight text-[#f4f4f0]">{step.title}</h3>
@@ -235,7 +259,8 @@ function ProductPreviewSection() {
 function FinalCTASection() {
   return (
     <section className="border-t border-[#292d2a] py-20">
-      <div className="rounded-2xl border border-[#292d2a] bg-[#0f1110] px-6 py-10 sm:px-10 lg:flex lg:items-center lg:justify-between lg:gap-8">
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0f1110] px-6 py-10 shadow-[0_24px_70px_rgba(0,0,0,0.26)] sm:px-10 lg:flex lg:items-center lg:justify-between lg:gap-8">
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d4af37]/45 to-transparent" aria-hidden="true" />
         <div className="max-w-2xl">
           <h2 className="text-3xl font-semibold tracking-[-0.04em] text-[#f4f4f0] sm:text-4xl">Ready to stop guessing?</h2>
           <p className="mt-4 text-base leading-7 text-[#a5aaa6]">

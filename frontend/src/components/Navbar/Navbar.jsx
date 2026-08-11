@@ -37,7 +37,7 @@ function Navbar() {
             key={link.href}
             href={link.href}
             onClick={(event) => handleAnchorClick(event, link.href)}
-            className="rounded-lg px-3 py-2 text-[#a5aaa6] hover:bg-[#151816] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#d6b94c]/70"
+            className="nav-link"
           >
             {link.label}
           </a>
@@ -45,14 +45,14 @@ function Navbar() {
       <Link
         to="/login"
         onClick={() => setIsMenuOpen(false)}
-        className="rounded-lg px-3 py-2 text-[#a5aaa6] hover:bg-[#151816] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#d6b94c]/70"
+        className="nav-link"
       >
         Login
       </Link>
       <Link
         to="/register"
         onClick={() => setIsMenuOpen(false)}
-        className="rounded-lg bg-[#d6b94c] px-3 py-2 font-semibold text-[#090a09] hover:bg-[#e0c762] focus:outline-none focus:ring-2 focus:ring-[#d6b94c]/70 focus:ring-offset-2 focus:ring-offset-[#090a09]"
+        className="btn-primary min-h-0 px-3 py-2"
       >
         Start Free
       </Link>
@@ -60,9 +60,9 @@ function Navbar() {
   );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#292d2a] bg-[#090a09]/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#080908]/90 backdrop-blur-xl supports-[backdrop-filter]:bg-[#080908]/78">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link to="/" className="shrink-0 focus:outline-none focus:ring-2 focus:ring-[#d6b94c]/70">
+        <Link to="/" className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50">
           <Logo />
         </Link>
         <div className="hidden max-w-full flex-wrap items-center gap-1 text-sm font-medium md:flex">
@@ -73,8 +73,8 @@ function Navbar() {
                 to={link.to}
                 className={({ isActive }) =>
                   isActive
-                    ? 'rounded-lg border border-[#292d2a] bg-[#151816] px-3 py-2 text-[#f4f4f0]'
-                    : 'rounded-lg px-3 py-2 text-[#a5aaa6] hover:bg-[#151816] hover:text-[#f4f4f0]'
+                    ? 'nav-link-active'
+                    : 'nav-link'
                 }
               >
                 {link.label}
@@ -84,7 +84,7 @@ function Navbar() {
             <button
               type="button"
               onClick={logout}
-              className="rounded-lg border border-[#292d2a] px-3 py-2 text-[#a5aaa6] hover:bg-[#151816] hover:text-[#f4f4f0]"
+              className="nav-link"
             >
               Logout
             </button>
@@ -94,7 +94,7 @@ function Navbar() {
         </div>
         <button
           type="button"
-          className="inline-flex rounded-lg border border-[#292d2a] px-3 py-2 text-sm font-medium text-[#f4f4f0] hover:bg-[#151816] focus:outline-none focus:ring-2 focus:ring-[#d6b94c]/70 md:hidden"
+          className="btn-secondary min-h-0 px-3 py-2 md:hidden"
           aria-expanded={isMenuOpen}
           aria-controls="mobile-navigation"
           onClick={() => setIsMenuOpen((current) => !current)}
@@ -103,7 +103,7 @@ function Navbar() {
         </button>
       </nav>
       {isMenuOpen && (
-        <div id="mobile-navigation" className="border-t border-[#292d2a] bg-[#090a09] px-4 py-3 md:hidden">
+        <div id="mobile-navigation" className="border-t border-white/[0.08] bg-[#080908]/98 px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] md:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-2 text-sm font-medium">
             {isAuthenticated
               ? appNavigationLinks.map((link) => (
@@ -113,8 +113,8 @@ function Navbar() {
                     onClick={() => setIsMenuOpen(false)}
                     className={({ isActive }) =>
                       isActive
-                        ? 'rounded-lg border border-[#292d2a] bg-[#151816] px-3 py-2 text-[#f4f4f0]'
-                        : 'rounded-lg px-3 py-2 text-[#a5aaa6] hover:bg-[#151816] hover:text-[#f4f4f0]'
+                        ? 'nav-link-active'
+                        : 'nav-link'
                     }
                   >
                     {link.label}
@@ -128,7 +128,7 @@ function Navbar() {
                   setIsMenuOpen(false);
                   logout();
                 }}
-                className="rounded-lg border border-[#292d2a] px-3 py-2 text-left text-[#a5aaa6] hover:bg-[#151816] hover:text-[#f4f4f0]"
+                className="nav-link text-left"
               >
                 Logout
               </button>
