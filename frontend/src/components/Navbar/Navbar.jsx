@@ -15,6 +15,9 @@ function Navbar() {
   const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isLandingPage = !isAuthenticated && pathname === '/';
+  const isLightDashboard = isAuthenticated && pathname === '/dashboard';
+  const navLinkClass = isLightDashboard ? 'nav-link-light' : 'nav-link';
+  const activeNavLinkClass = isLightDashboard ? 'nav-link-light-active' : 'nav-link-active';
 
   const handleAnchorClick = (event, href) => {
     event.preventDefault();
@@ -37,7 +40,7 @@ function Navbar() {
             key={link.href}
             href={link.href}
             onClick={(event) => handleAnchorClick(event, link.href)}
-            className="nav-link"
+            className={navLinkClass}
           >
             {link.label}
           </a>
@@ -45,7 +48,7 @@ function Navbar() {
       <Link
         to="/login"
         onClick={() => setIsMenuOpen(false)}
-        className="nav-link"
+        className={navLinkClass}
       >
         Login
       </Link>
@@ -60,10 +63,14 @@ function Navbar() {
   );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#080908]/90 backdrop-blur-xl supports-[backdrop-filter]:bg-[#080908]/78">
+    <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${
+      isLightDashboard
+        ? 'border-[#d8d6cf] bg-[#faf9f6]/92 supports-[backdrop-filter]:bg-[#faf9f6]/86'
+        : 'border-white/[0.08] bg-[#080908]/90 supports-[backdrop-filter]:bg-[#080908]/78'
+    }`}>
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link to="/" className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#d4af37]/50">
-          <Logo />
+        <Link to="/" className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f4f46]/40">
+          <Logo tone={isLightDashboard ? 'light' : 'dark'} />
         </Link>
         <div className="hidden max-w-full flex-wrap items-center gap-1 text-sm font-medium md:flex">
           {isAuthenticated &&
@@ -73,8 +80,8 @@ function Navbar() {
                 to={link.to}
                 className={({ isActive }) =>
                   isActive
-                    ? 'nav-link-active'
-                    : 'nav-link'
+                    ? activeNavLinkClass
+                    : navLinkClass
                 }
               >
                 {link.label}
@@ -84,7 +91,7 @@ function Navbar() {
             <button
               type="button"
               onClick={logout}
-              className="nav-link"
+              className={navLinkClass}
             >
               Logout
             </button>
@@ -94,7 +101,7 @@ function Navbar() {
         </div>
         <button
           type="button"
-          className="btn-secondary min-h-0 px-3 py-2 md:hidden"
+          className={isLightDashboard ? 'btn-secondary-light min-h-0 px-3 py-2 md:hidden' : 'btn-secondary min-h-0 px-3 py-2 md:hidden'}
           aria-expanded={isMenuOpen}
           aria-controls="mobile-navigation"
           onClick={() => setIsMenuOpen((current) => !current)}
@@ -103,7 +110,9 @@ function Navbar() {
         </button>
       </nav>
       {isMenuOpen && (
-        <div id="mobile-navigation" className="border-t border-white/[0.08] bg-[#080908]/98 px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.35)] md:hidden">
+        <div id="mobile-navigation" className={`border-t px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)] md:hidden ${
+          isLightDashboard ? 'border-[#d8d6cf] bg-[#faf9f6]' : 'border-white/[0.08] bg-[#080908]/98'
+        }`}>
           <div className="mx-auto flex max-w-7xl flex-col gap-2 text-sm font-medium">
             {isAuthenticated
               ? appNavigationLinks.map((link) => (
@@ -113,8 +122,8 @@ function Navbar() {
                     onClick={() => setIsMenuOpen(false)}
                     className={({ isActive }) =>
                       isActive
-                        ? 'nav-link-active'
-                        : 'nav-link'
+                        ? activeNavLinkClass
+                        : navLinkClass
                     }
                   >
                     {link.label}
@@ -128,7 +137,7 @@ function Navbar() {
                   setIsMenuOpen(false);
                   logout();
                 }}
-                className="nav-link text-left"
+                className={`${navLinkClass} text-left`}
               >
                 Logout
               </button>

@@ -12,6 +12,7 @@ function Footer() {
   const { isAuthenticated } = useAuth();
   const { pathname } = useLocation();
   const isLandingPage = !isAuthenticated && pathname === '/';
+  const isLightDashboard = isAuthenticated && pathname === '/dashboard';
   const currentYear = new Date().getFullYear();
 
   if (isLandingPage) {
@@ -67,8 +68,8 @@ function Footer() {
   }
 
   return (
-    <footer className="border-t border-stone-800 bg-[#080806]">
-      <div className="mx-auto max-w-7xl px-4 py-5 text-sm text-stone-500 sm:px-6 lg:px-8">
+    <footer className={isLightDashboard ? 'border-t border-[#d8d6cf] bg-[#f4f3ee]' : 'border-t border-stone-800 bg-[#080806]'}>
+      <div className={`mx-auto max-w-7xl px-4 py-5 text-sm sm:px-6 lg:px-8 ${isLightDashboard ? 'text-[#8a8c86]' : 'text-stone-500'}`}>
         © {currentYear} GetJackedCoach. Built for strength tracking.
       </div>
     </footer>

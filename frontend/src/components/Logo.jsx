@@ -48,10 +48,13 @@ function Logo({
   size = 'md',
   className = '',
   markClassName,
+  tone = 'dark',
   ariaLabel = 'GetJackedCoach',
 }) {
   const resolvedSize = sizeClasses[size] || sizeClasses.md;
   const shouldShowWordmark = showWordmark && !iconOnly;
+  const wordmarkTone = tone === 'light' ? 'text-[#181A18]' : 'text-[#FFFFFF]';
+  const taglineTone = tone === 'light' ? 'text-[#62645F]' : 'text-[#8FA3AD]';
 
   return (
     <span className={`inline-flex items-center gap-3 ${className}`} aria-label={ariaLabel}>
@@ -60,13 +63,13 @@ function Logo({
       {shouldShowWordmark && (
         <span className="leading-none">
           <span
-            className={`block font-black uppercase tracking-[-0.045em] text-[#FFFFFF] ${resolvedSize.wordmark}`}
+            className={`block font-black uppercase tracking-[-0.045em] ${wordmarkTone} ${resolvedSize.wordmark}`}
           >
             GETJACKED<span className="text-[#D4AF37]">COACH</span>
           </span>
           {showTagline && (
             <span
-              className={`mt-1 hidden font-semibold tracking-[0.16em] text-[#8FA3AD] sm:block ${resolvedSize.tagline}`}
+              className={`mt-1 hidden font-semibold tracking-[0.16em] sm:block ${taglineTone} ${resolvedSize.tagline}`}
             >
               Adaptive Strength Programming
             </span>
