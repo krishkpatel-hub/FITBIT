@@ -16,20 +16,20 @@ function Footer() {
 
   if (isLandingPage) {
     return (
-      <footer className="border-t border-[#292d2a] bg-[#080806]">
+      <footer className="border-t border-[#D2CFC7] bg-[#EEECE5]">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.4fr_1fr_1fr_1fr] lg:px-8">
           <div>
-            <Logo />
-            <p className="mt-4 max-w-sm text-sm leading-6 text-[#a5aaa6]">
+            <Logo tone="light" />
+            <p className="mt-4 max-w-sm text-sm leading-6 text-[#4F534E]">
               Adaptive strength programming, workout tracking, and progress tools for lifters.
             </p>
           </div>
 
           <nav aria-label="Product footer navigation">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#737a75]">Product</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">Product</h2>
             <div className="mt-4 space-y-3 text-sm">
               {scrollLinks.map((link) => (
-                <a key={link.href} href={link.href} className="block text-[#a5aaa6] hover:text-[#f4f4f0]">
+                <a key={link.href} href={link.href} className="block text-[#4F534E] hover:text-[#151714]">
                   {link.label}
                 </a>
               ))}
@@ -37,28 +37,28 @@ function Footer() {
           </nav>
 
           <nav aria-label="Account footer navigation">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#737a75]">Account</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">Account</h2>
             <div className="mt-4 space-y-3 text-sm">
-              <Link to="/login" className="block text-[#a5aaa6] hover:text-[#f4f4f0]">
+              <Link to="/login" className="block text-[#4F534E] hover:text-[#151714]">
                 Login
               </Link>
-              <Link to="/register" className="block text-[#a5aaa6] hover:text-[#f4f4f0]">
+              <Link to="/register" className="block text-[#4F534E] hover:text-[#151714]">
                 Create Account
               </Link>
             </div>
           </nav>
 
           <div>
-            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#737a75]">Legal</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">Legal</h2>
             <div className="mt-4 space-y-3 text-sm">
               {/* TODO: Link these labels when Privacy and Terms routes are implemented. */}
-              <span className="block text-[#737a75]">Privacy</span>
-              <span className="block text-[#737a75]">Terms</span>
+              <span className="block text-[#747872]">Privacy</span>
+              <span className="block text-[#747872]">Terms</span>
             </div>
           </div>
         </div>
-        <div className="border-t border-[#292d2a]">
-          <div className="mx-auto max-w-7xl px-4 py-5 text-sm text-[#737a75] sm:px-6 lg:px-8">
+        <div className="border-t border-[#D2CFC7]">
+          <div className="mx-auto max-w-7xl px-4 py-5 text-sm text-[#747872] sm:px-6 lg:px-8">
             © {currentYear} GetJackedCoach. All rights reserved.
           </div>
         </div>
@@ -67,8 +67,8 @@ function Footer() {
   }
 
   return (
-    <footer className="border-t border-[#d8d6cf] bg-[#f4f3ee]">
-      <div className="mx-auto max-w-7xl px-4 py-5 text-sm text-[#8a8c86] sm:px-6 lg:px-8">
+    <footer className="border-t border-[#D2CFC7] bg-[#EEECE5]">
+      <div className="mx-auto max-w-7xl px-4 py-5 text-sm text-[#747872] sm:px-6 lg:px-8">
         © {currentYear} GetJackedCoach. Built for strength tracking.
       </div>
     </footer>

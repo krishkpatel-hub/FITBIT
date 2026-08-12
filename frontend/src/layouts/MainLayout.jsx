@@ -19,7 +19,7 @@ function MainLayout() {
   }, []);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#f4f3ee] text-[#181a18]">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#EEECE5] text-[#151714]">
       <CustomCursor />
       <Navbar />
       <motion.main

@@ -257,7 +257,7 @@ function Dashboard() {
             type="button"
             onClick={seedDemoData}
             disabled={seedingDemo}
-            className="btn-secondary-light"
+            className="btn-secondary"
           >
             {seedingDemo ? 'Creating demo data...' : 'Seed Demo Data'}
           </button>

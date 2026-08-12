@@ -48,7 +48,7 @@ function Logo({
   size = 'md',
   className = '',
   markClassName,
-  tone = 'dark',
+  tone = 'light',
   ariaLabel = 'GetJackedCoach',
 }) {
   const resolvedSize = sizeClasses[size] || sizeClasses.md;
