@@ -671,18 +671,24 @@ function Progress() {
                 {workoutForm.exercises.length === 0 ? (
                   <p className="empty-state">Add exercises manually or finalize a template to load exercises here.</p>
                 ) : (
-                  <div className="space-y-5">
+                  <div className="space-y-7">
                     {workoutForm.exercises.map((exercise, exerciseIndex) => (
-                      <article key={`workout-exercise-${exerciseIndex}`} className="border-t border-stone-800 pt-5">
-                        <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
-                          <label className="block">
-                            <span className="text-sm font-medium text-stone-300">Exercise name</span>
-                            <input value={exercise.exerciseName} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'exerciseName', event.target.value)} className="form-field" />
-                          </label>
-                          <label className="block">
-                            <span className="text-sm font-medium text-stone-300">Muscle group</span>
-                            <input value={exercise.muscleGroup} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'muscleGroup', event.target.value)} className="form-field" />
-                          </label>
+                      <article
+                        key={`workout-exercise-${exerciseIndex}`}
+                        className="rounded-lg border border-[#D2CFC7] bg-[#FAF9F6] p-4 sm:p-5"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#D2CFC7] pb-4">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">
+                              Exercise {exerciseIndex + 1}
+                            </p>
+                            <h3 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-[#151714]">
+                              {exercise.exerciseName || 'Untitled Exercise'}
+                            </h3>
+                            <p className="mt-1 text-sm text-[#747872]">
+                              {exercise.muscleGroup || 'Muscle group not set'}
+                            </p>
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeWorkoutExercise(exerciseIndex)}
@@ -692,34 +698,48 @@ function Progress() {
                           </button>
                         </div>
 
+                        <div className="mt-5 grid gap-4 md:grid-cols-2">
+                          <label className="block">
+                            <span className="text-sm font-medium text-stone-300">Exercise name</span>
+                            <input value={exercise.exerciseName} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'exerciseName', event.target.value)} className="form-field" />
+                          </label>
+                          <label className="block">
+                            <span className="text-sm font-medium text-stone-300">Muscle group</span>
+                            <input value={exercise.muscleGroup} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'muscleGroup', event.target.value)} className="form-field" />
+                          </label>
+                        </div>
+
                         <label className="mt-4 block">
                           <span className="text-sm font-medium text-stone-300">Exercise notes</span>
                           <textarea rows="2" value={exercise.notes} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'notes', event.target.value)} className="form-field" />
                         </label>
 
-                        <div className="mt-4 flex items-center justify-between gap-3 border-t border-stone-800 pt-4">
-                          <p className="text-sm font-semibold text-stone-200">Sets</p>
+                        <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#D2CFC7] pt-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">Sets</p>
                           <button type="button" onClick={() => addWorkoutSet(exerciseIndex)} className="btn-secondary px-3">
                             Add Set
                           </button>
                         </div>
 
                         {exercise.sets.length === 0 ? (
-                          <p className="mt-4 rounded-lg border border-dashed border-stone-800 px-4 py-3 text-sm text-stone-500">
+                          <p className="mt-4 text-sm text-[#747872]">
                             No sets logged yet. Add sets for today's workout only.
                           </p>
                         ) : (
-                          <div className="mt-4 divide-y divide-stone-800 border-y border-stone-800">
+                          <div className="mt-4 divide-y divide-[#D2CFC7] border-y border-[#D2CFC7]">
                             {exercise.sets.map((set, setIndex) => (
                               <div key={`workout-set-${setIndex}`} className="grid gap-3 py-4 md:grid-cols-[72px_1fr_1fr_100px_auto] md:items-end">
-                                <div className="text-sm font-semibold text-stone-400">Set {setIndex + 1}</div>
+                                <div className="text-sm font-semibold text-[#4F534E]">Set {setIndex + 1}</div>
                                 <label className="block">
                                   <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Reps</span>
                                   <input type="number" min="0" value={set.reps} onChange={(event) => updateWorkoutSet(exerciseIndex, setIndex, 'reps', event.target.value)} className="form-field" />
                                 </label>
                                 <label className="block">
                                   <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Weight</span>
-                                  <input type="number" min="0" value={set.weight} onChange={(event) => updateWorkoutSet(exerciseIndex, setIndex, 'weight', event.target.value)} className="form-field" />
+                                  <div className="flex items-center gap-2">
+                                    <input type="number" min="0" value={set.weight} onChange={(event) => updateWorkoutSet(exerciseIndex, setIndex, 'weight', event.target.value)} className="form-field" />
+                                    <span className="mt-1 text-sm font-medium text-[#747872]">lb</span>
+                                  </div>
                                 </label>
                                 <label className="flex items-center gap-2 text-sm text-stone-300">
                                   <input
