@@ -291,7 +291,7 @@ function Dashboard() {
             <p className="dashboard-muted">{formatDate(nextWorkout?.date)}</p>
           </div>
 
-          <Link to="/strength-program" className="btn-primary-light">
+          <Link to="/strength-program" className="btn-secondary">
             Continue Strength Program
           </Link>
         </section>
@@ -333,7 +333,7 @@ function Dashboard() {
         </div>
 
         <div className="dashboard-actions">
-          <button type="submit" disabled={saving} className="btn-primary-light">
+          <button type="submit" disabled={saving} className="btn-secondary">
             {saving ? 'Saving...' : 'Save 1RMs'}
           </button>
           <p>Training maxes are calculated and stored after saving.</p>
@@ -343,10 +343,7 @@ function Dashboard() {
       <section className="dashboard-step" aria-labelledby="generate-week-title">
         <div className="dashboard-step-heading">
           <div>
-            <p className="dashboard-step-label">02 / Generate your week</p>
-            <h2 id="generate-week-title" className="dashboard-section-title">
-              Week {targetWeek}
-            </h2>
+            <h2 id="generate-week-title" className="dashboard-step-label">02 / Generate your week</h2>
           </div>
           <span className={allLiftsSaved ? 'dashboard-ready-text' : 'dashboard-muted'}>
             {allLiftsSaved
@@ -365,7 +362,7 @@ function Dashboard() {
           type="button"
           onClick={generateProgram}
           disabled={generatingProgram || saving || !allLiftsSaved}
-          className="btn-primary-light"
+          className="btn-primary"
         >
           {generatingProgram ? `Generating Week ${targetWeek}...` : `Generate Week ${targetWeek}`}
         </button>

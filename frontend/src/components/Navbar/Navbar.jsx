@@ -15,9 +15,8 @@ function Navbar() {
   const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isLandingPage = !isAuthenticated && pathname === '/';
-  const isLightDashboard = isAuthenticated && pathname === '/dashboard';
-  const navLinkClass = isLightDashboard ? 'nav-link-light' : 'nav-link';
-  const activeNavLinkClass = isLightDashboard ? 'nav-link-light-active' : 'nav-link-active';
+  const navLinkClass = 'nav-link';
+  const activeNavLinkClass = 'nav-link-active';
 
   const handleAnchorClick = (event, href) => {
     event.preventDefault();
@@ -63,14 +62,10 @@ function Navbar() {
   );
 
   return (
-    <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${
-      isLightDashboard
-        ? 'border-[#d8d6cf] bg-[#faf9f6]/92 supports-[backdrop-filter]:bg-[#faf9f6]/86'
-        : 'border-white/[0.08] bg-[#080908]/90 supports-[backdrop-filter]:bg-[#080908]/78'
-    }`}>
+    <header className="sticky top-0 z-30 border-b border-[#d8d6cf] bg-[#faf9f6]/92 backdrop-blur-xl supports-[backdrop-filter]:bg-[#faf9f6]/86">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <Link to="/" className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f4f46]/40">
-          <Logo tone={isLightDashboard ? 'light' : 'dark'} />
+          <Logo tone="light" />
         </Link>
         <div className="hidden max-w-full flex-wrap items-center gap-1 text-sm font-medium md:flex">
           {isAuthenticated &&
@@ -101,7 +96,7 @@ function Navbar() {
         </div>
         <button
           type="button"
-          className={isLightDashboard ? 'btn-secondary-light min-h-0 px-3 py-2 md:hidden' : 'btn-secondary min-h-0 px-3 py-2 md:hidden'}
+          className="btn-secondary min-h-0 px-3 py-2 md:hidden"
           aria-expanded={isMenuOpen}
           aria-controls="mobile-navigation"
           onClick={() => setIsMenuOpen((current) => !current)}
@@ -110,9 +105,7 @@ function Navbar() {
         </button>
       </nav>
       {isMenuOpen && (
-        <div id="mobile-navigation" className={`border-t px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)] md:hidden ${
-          isLightDashboard ? 'border-[#d8d6cf] bg-[#faf9f6]' : 'border-white/[0.08] bg-[#080908]/98'
-        }`}>
+        <div id="mobile-navigation" className="border-t border-[#d8d6cf] bg-[#faf9f6] px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.12)] md:hidden">
           <div className="mx-auto flex max-w-7xl flex-col gap-2 text-sm font-medium">
             {isAuthenticated
               ? appNavigationLinks.map((link) => (

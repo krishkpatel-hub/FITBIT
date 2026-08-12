@@ -32,7 +32,7 @@
 }
 
 .custom-cursor__dot,
-.custom-cursor__ring {
+.custom-cursor__ring-position {
   pointer-events: none;
   position: fixed;
   left: 0;
@@ -47,9 +47,14 @@
   background: var(--cursor-dot);
 }
 
-.custom-cursor__ring {
+.custom-cursor__ring-position {
   width: 32px;
   height: 32px;
+}
+
+.custom-cursor__ring-visual {
+  width: 100%;
+  height: 100%;
   border: 1px solid var(--cursor-ring);
   border-radius: 999px;
   opacity: 0.55;
@@ -59,21 +64,21 @@
     border-color 130ms ease;
 }
 
-.custom-cursor--interactive .custom-cursor__ring {
+.custom-cursor--interactive .custom-cursor__ring-visual {
   opacity: 0.3;
-  scale: 1.42;
+  scale: 1.35;
 }
 
-.custom-cursor--pressed .custom-cursor__ring {
+.custom-cursor--pressed .custom-cursor__ring-visual {
   opacity: 0.42;
-  scale: 0.85;
+  scale: 0.9;
 }
 
-body:not(.dashboard-light-shell) .custom-cursor__dot {
+body:not(.app-light-shell) .custom-cursor__dot {
   background: #f5f5f2;
 }
 
-body:not(.dashboard-light-shell) .custom-cursor__ring {
+body:not(.app-light-shell) .custom-cursor__ring-visual {
   border-color: var(--cursor-ring-dark);
 }
 

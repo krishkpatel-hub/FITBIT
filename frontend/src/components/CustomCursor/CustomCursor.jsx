@@ -28,10 +28,10 @@ const nativeControlSelector = [
 function CustomCursor() {
   const cursorRef = useRef(null);
   const dotRef = useRef(null);
-  const ringRef = useRef(null);
+  const ringPositionRef = useRef(null);
   const frameRef = useRef(0);
   const pointerRef = useRef({ x: 0, y: 0 });
-  const ringPositionRef = useRef({ x: 0, y: 0 });
+  const ringCoordinatesRef = useRef({ x: 0, y: 0 });
   const hasPointerRef = useRef(false);
   const [enabled, setEnabled] = useState(false);
 
@@ -68,9 +68,9 @@ function CustomCursor() {
 
     const cursor = cursorRef.current;
     const dot = dotRef.current;
-    const ring = ringRef.current;
+    const ringPosition = ringPositionRef.current;
 
-    if (!cursor || !dot || !ring) {
+    if (!cursor || !dot || !ringPosition) {
       return undefined;
     }
 
@@ -94,8 +94,8 @@ function CustomCursor() {
       pointerRef.current.y = event.clientY;
 
       if (!hasPointerRef.current) {
-        ringPositionRef.current.x = event.clientX;
-        ringPositionRef.current.y = event.clientY;
+        ringCoordinatesRef.current.x = event.clientX;
+        ringCoordinatesRef.current.y = event.clientY;
         hasPointerRef.current = true;
       }
 
@@ -118,13 +118,13 @@ function CustomCursor() {
 
     const animate = () => {
       const pointer = pointerRef.current;
-      const ringPosition = ringPositionRef.current;
+      const ringCoordinates = ringCoordinatesRef.current;
 
-      ringPosition.x += (pointer.x - ringPosition.x) * TRAIL_LERP;
-      ringPosition.y += (pointer.y - ringPosition.y) * TRAIL_LERP;
+      ringCoordinates.x += (pointer.x - ringCoordinates.x) * TRAIL_LERP;
+      ringCoordinates.y += (pointer.y - ringCoordinates.y) * TRAIL_LERP;
 
       dot.style.transform = `translate3d(${pointer.x - DOT_SIZE / 2}px, ${pointer.y - DOT_SIZE / 2}px, 0)`;
-      ring.style.transform = `translate3d(${ringPosition.x - RING_SIZE / 2}px, ${ringPosition.y - RING_SIZE / 2}px, 0)`;
+      ringPosition.style.transform = `translate3d(${ringCoordinates.x - RING_SIZE / 2}px, ${ringCoordinates.y - RING_SIZE / 2}px, 0)`;
 
       frameRef.current = window.requestAnimationFrame(animate);
     };
@@ -158,7 +158,9 @@ function CustomCursor() {
   return (
     <div ref={cursorRef} className="custom-cursor custom-cursor--hidden" aria-hidden="true">
       <div ref={dotRef} className="custom-cursor__dot" />
-      <div ref={ringRef} className="custom-cursor__ring" />
+      <div ref={ringPositionRef} className="custom-cursor__ring-position">
+        <div className="custom-cursor__ring-visual" />
+      </div>
     </div>
   );
 }
