@@ -65,10 +65,10 @@ const scrollToSection = (event, selector) => {
 
 function SectionIntro({ eyebrow, title, copy }) {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-[760px]">
       <p className="eyebrow">{eyebrow}</p>
-      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-[#151714] sm:text-4xl">{title}</h2>
-      {copy && <p className="mt-4 text-base leading-7 text-[#4F534E]">{copy}</p>}
+      <h2 className="mt-3 text-[clamp(2rem,3vw,2.75rem)] font-semibold leading-[1.06] tracking-[-0.04em] text-[#151714]">{title}</h2>
+      {copy && <p className="mt-4 max-w-[700px] text-base leading-7 text-[#4F534E]">{copy}</p>}
     </div>
   );
 }
@@ -78,14 +78,14 @@ function TimelineItem({ item, side = 'left' }) {
   const contentAlignment = side === 'right' ? 'md:justify-self-start' : 'md:justify-self-end';
 
   return (
-    <article className="relative grid gap-4 border-t border-[#D8D5CD] py-12 pl-11 first:border-t-0 md:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)] md:gap-0 md:py-14 md:pl-0">
+    <article className="relative grid gap-4 border-t border-[#D8D5CD] py-12 pl-11 first:border-t-0 md:grid-cols-[minmax(0,1fr)_76px_minmax(0,1fr)] md:gap-0 md:py-14 md:pl-0 lg:grid-cols-[minmax(0,1fr)_88px_minmax(0,1fr)]">
       <div className="absolute left-0 top-12 flex h-6 w-6 items-center justify-center md:static md:col-start-2 md:row-start-1 md:mx-auto md:mt-1">
         <span className="h-1.5 w-1.5 rounded-full border border-[#BDBAB2] bg-[#EEECE5]" aria-hidden="true" />
       </div>
-      <div className={`${contentPlacement} ${contentAlignment} max-w-[420px]`}>
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">{item.number}</p>
-        <h3 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-[#151714]">{item.title}</h3>
-        <p className="mt-3 text-sm leading-6 text-[#4F534E] sm:text-base sm:leading-7">{item.description}</p>
+      <div className={`${contentPlacement} ${contentAlignment} max-w-[460px]`}>
+        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[#747872]">{item.number}</p>
+        <h3 className="mt-2 text-[clamp(1.45rem,2vw,1.625rem)] font-semibold leading-[1.12] tracking-[-0.035em] text-[#151714]">{item.title}</h3>
+        <p className="mt-3 text-[0.95rem] leading-7 text-[#4F534E] sm:text-base">{item.description}</p>
       </div>
     </article>
   );
@@ -111,13 +111,13 @@ function SmallIcon() {
 
 function HeroSection() {
   return (
-    <section className="pt-24 pb-16 sm:pt-28 sm:pb-[72px] lg:pt-32">
+    <section className="pt-20 pb-16 sm:pt-24 sm:pb-[72px]">
       <motion.div className="max-w-5xl" variants={fadeUp} initial="hidden" animate="visible" transition={revealTransition}>
         <p className="eyebrow">ADAPTIVE STRENGTH PROGRAMMING</p>
-        <h1 className="mt-5 max-w-4xl text-5xl font-semibold leading-[0.96] tracking-[-0.06em] text-[#151714] sm:text-6xl lg:text-7xl">
+        <h1 className="mt-5 max-w-[900px] text-[clamp(2.625rem,5vw,4rem)] font-semibold leading-[1] tracking-[-0.06em] text-[#151714]">
           Stop guessing<br className="hidden sm:block" /> what to lift next.
         </h1>
-        <p className="mt-7 max-w-2xl text-base leading-7 text-[#4F534E] sm:text-lg">
+        <p className="mt-7 max-w-[720px] text-base leading-7 text-[#4F534E] sm:text-lg sm:leading-8">
           GetJackedCoach builds your strength program, tracks every workout, and adjusts your training based on your actual performance.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -136,12 +136,12 @@ function HeroSection() {
 
 function ProductProofStrip() {
   return (
-    <section id="features" className="scroll-mt-28 border-y border-[#D2CFC7] py-5" aria-label="Product capabilities">
-      <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+    <section id="features" className="scroll-mt-28 border-y border-[#D2CFC7] py-6" aria-label="Product capabilities">
+      <div className="grid gap-x-10 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
         {proofItems.map((item) => (
           <div key={item} className="flex items-center gap-3">
             <SmallIcon />
-            <span className="text-sm font-medium text-[#151714]">{item}</span>
+            <span className="text-[0.95rem] font-medium text-[#151714]">{item}</span>
           </div>
         ))}
       </div>
@@ -197,7 +197,7 @@ function FinalCTASection() {
 function Home() {
   return (
     <div className="landing-editorial">
-      <div className="mx-auto w-[calc(100%-32px)] max-w-[1180px] sm:w-[calc(100%-48px)]">
+      <div className="mx-auto w-[calc(100%-40px)] max-w-[1240px] sm:w-[calc(100%-48px)]">
         <HeroSection />
         <ProductProofStrip />
         <HowItWorksSection />

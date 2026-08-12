@@ -17,6 +17,9 @@ function Navbar() {
   const isLandingPage = !isAuthenticated && pathname === '/';
   const navLinkClass = 'nav-link';
   const activeNavLinkClass = 'nav-link-active';
+  const desktopNavClass = isLandingPage
+    ? 'hidden max-w-full flex-wrap items-center gap-2 text-[13px] font-medium lg:gap-3 md:flex'
+    : 'hidden max-w-full flex-wrap items-center gap-1 text-sm font-medium md:flex';
 
   const handleAnchorClick = (event, href) => {
     event.preventDefault();
@@ -63,11 +66,11 @@ function Navbar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#d8d6cf] bg-[#faf9f6]/92 backdrop-blur-xl supports-[backdrop-filter]:bg-[#faf9f6]/86">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <nav className="mx-auto flex max-w-[1240px] items-center justify-between gap-4 px-5 py-[18px] sm:px-6 lg:px-8">
         <Link to="/" className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f4f46]/40">
           <Logo tone="light" />
         </Link>
-        <div className="hidden max-w-full flex-wrap items-center gap-1 text-sm font-medium md:flex">
+        <div className={desktopNavClass}>
           {isAuthenticated &&
             appNavigationLinks.map((link) => (
               <NavLink
