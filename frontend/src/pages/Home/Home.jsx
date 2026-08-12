@@ -75,18 +75,29 @@ function SectionIntro({ eyebrow, title, copy }) {
 
 function TimelineItem({ item, side = 'left' }) {
   const contentPlacement = side === 'right' ? 'md:col-start-3' : 'md:col-start-1';
+  const contentAlignment = side === 'right' ? 'md:justify-self-start' : 'md:justify-self-end';
 
   return (
-    <article className="relative grid gap-4 py-6 pl-11 md:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] md:gap-0 md:py-8 md:pl-0">
-      <div className="absolute left-0 top-8 flex h-6 w-6 items-center justify-center md:static md:col-start-2 md:row-start-1 md:mx-auto md:mt-1">
-        <span className="h-2.5 w-2.5 rounded-full border border-[#BDB8AD] bg-[#EEECE5]" aria-hidden="true" />
+    <article className="relative grid gap-4 border-t border-[#D8D5CD] py-12 pl-11 first:border-t-0 md:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)] md:gap-0 md:py-14 md:pl-0">
+      <div className="absolute left-0 top-12 flex h-6 w-6 items-center justify-center md:static md:col-start-2 md:row-start-1 md:mx-auto md:mt-1">
+        <span className="h-1.5 w-1.5 rounded-full border border-[#BDBAB2] bg-[#EEECE5]" aria-hidden="true" />
       </div>
-      <div className={`${contentPlacement} max-w-md`}>
+      <div className={`${contentPlacement} ${contentAlignment} max-w-[420px]`}>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">{item.number}</p>
         <h3 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-[#151714]">{item.title}</h3>
         <p className="mt-3 text-sm leading-6 text-[#4F534E] sm:text-base sm:leading-7">{item.description}</p>
       </div>
     </article>
+  );
+}
+
+function TimelineBlock({ items }) {
+  return (
+    <div className="relative mt-10 before:absolute before:bottom-12 before:left-3 before:top-12 before:w-px before:bg-[#D8D5CD] md:before:left-1/2 md:before:-translate-x-1/2">
+      {items.map((item, index) => (
+        <TimelineItem key={`${item.number}-${item.title}`} item={item} side={index % 2 === 0 ? 'left' : 'right'} />
+      ))}
+    </div>
   );
 }
 
@@ -142,28 +153,20 @@ function HowItWorksSection() {
   return (
     <section id="how-it-works" className="scroll-mt-28 pt-16 sm:pt-20">
       <SectionIntro eyebrow="HOW IT WORKS" title="A clear path from your first lift to your next progression." />
-      <div className="mt-10">
-        {steps.map((step, index) => (
-          <TimelineItem key={step.number} item={step} side={index % 2 === 0 ? 'left' : 'right'} />
-        ))}
-      </div>
+      <TimelineBlock items={steps} />
     </section>
   );
 }
 
 function ProductPreviewSection() {
   return (
-    <section id="product" className="scroll-mt-28 pt-16 sm:pt-20">
+    <section id="product" className="mt-16 scroll-mt-28 border-t border-[#D2CFC7] pt-16 sm:mt-20 sm:pt-20">
       <SectionIntro
         eyebrow="THE PRODUCT"
         title="A focused workflow for training decisions."
         copy="GetJackedCoach brings programming, logging, progress, and coaching into one connected workflow."
       />
-      <div className="mt-10">
-        {featureRows.map((row, index) => (
-          <TimelineItem key={row.title} item={row} side={index % 2 === 0 ? 'left' : 'right'} />
-        ))}
-      </div>
+      <TimelineBlock items={featureRows} />
     </section>
   );
 }
@@ -197,10 +200,8 @@ function Home() {
       <div className="mx-auto w-[calc(100%-32px)] max-w-[1180px] sm:w-[calc(100%-48px)]">
         <HeroSection />
         <ProductProofStrip />
-        <div className="relative before:absolute before:bottom-0 before:left-3 before:top-16 before:w-px before:bg-[#D2CFC7] md:before:left-1/2 md:before:top-20 md:before:-translate-x-1/2">
-          <HowItWorksSection />
-          <ProductPreviewSection />
-        </div>
+        <HowItWorksSection />
+        <ProductPreviewSection />
         <FinalCTASection />
       </div>
     </div>
