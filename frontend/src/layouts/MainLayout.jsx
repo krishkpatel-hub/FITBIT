@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar/Navbar.jsx';
 import Footer from '../components/Footer/Footer.jsx';
 import DecorativeBackground from '../components/DecorativeBackground/DecorativeBackground.jsx';
+import CustomCursor from '../components/CustomCursor/CustomCursor.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 function MainLayout() {
@@ -10,8 +12,17 @@ function MainLayout() {
   const { pathname } = useLocation();
   const isLightDashboard = isAuthenticated && pathname === '/dashboard';
 
+  useEffect(() => {
+    document.body.classList.toggle('dashboard-light-shell', isLightDashboard);
+
+    return () => {
+      document.body.classList.remove('dashboard-light-shell');
+    };
+  }, [isLightDashboard]);
+
   return (
     <div className={`relative flex min-h-screen flex-col overflow-x-hidden ${isLightDashboard ? 'bg-[#f4f3ee] text-[#181a18]' : 'text-[#f5f5f2]'}`}>
+      <CustomCursor />
       {isAuthenticated && !isLightDashboard && <DecorativeBackground />}
       <Navbar />
       <motion.main

@@ -1,0 +1,89 @@
+:root {
+  --cursor-dot: #2f4f46;
+  --cursor-ring: rgba(47, 79, 70, 0.55);
+  --cursor-ring-dark: rgba(245, 245, 242, 0.58);
+}
+
+.custom-cursor-enabled,
+.custom-cursor-enabled :where(a, button, [role="button"], [data-cursor="interactive"], summary, label, select) {
+  cursor: none;
+}
+
+.custom-cursor-enabled :where(input, textarea, select, [contenteditable="true"]) {
+  cursor: auto;
+}
+
+.custom-cursor-enabled :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, [contenteditable="true"]) {
+  cursor: text;
+}
+
+.custom-cursor {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  opacity: 1;
+  transition: opacity 140ms ease;
+}
+
+.custom-cursor--hidden,
+.custom-cursor--native-control {
+  opacity: 0;
+}
+
+.custom-cursor__dot,
+.custom-cursor__ring {
+  pointer-events: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.custom-cursor__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--cursor-dot);
+}
+
+.custom-cursor__ring {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--cursor-ring);
+  border-radius: 999px;
+  opacity: 0.55;
+  transition:
+    opacity 130ms ease,
+    scale 130ms ease,
+    border-color 130ms ease;
+}
+
+.custom-cursor--interactive .custom-cursor__ring {
+  opacity: 0.3;
+  scale: 1.42;
+}
+
+.custom-cursor--pressed .custom-cursor__ring {
+  opacity: 0.42;
+  scale: 0.85;
+}
+
+body:not(.dashboard-light-shell) .custom-cursor__dot {
+  background: #f5f5f2;
+}
+
+body:not(.dashboard-light-shell) .custom-cursor__ring {
+  border-color: var(--cursor-ring-dark);
+}
+
+@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .custom-cursor {
+    display: none;
+  }
+
+  .custom-cursor-enabled,
+  .custom-cursor-enabled * {
+    cursor: auto;
+  }
+}
