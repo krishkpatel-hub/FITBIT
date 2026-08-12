@@ -354,15 +354,11 @@ function Dashboard() {
           </span>
         </div>
 
-        <p className="dashboard-body-copy">
-          Week {targetWeek} will be created from your current training maxes. The full workout details live on the Strength Program page.
-        </p>
-
         <button
           type="button"
           onClick={generateProgram}
           disabled={generatingProgram || saving || !allLiftsSaved}
-          className="btn-primary"
+          className="btn-primary mt-6"
         >
           {generatingProgram ? `Generating Week ${targetWeek}...` : `Generate Week ${targetWeek}`}
         </button>
@@ -380,9 +376,6 @@ function Dashboard() {
             Open Strength Program
           </Link>
         </div>
-        <p className="dashboard-body-copy">
-          Once generated, your weekly workouts appear in Strength Program with training days, target weights, plus sets, and completion tracking.
-        </p>
       </section>
 
       <section className="dashboard-guide" aria-labelledby="explore-title">

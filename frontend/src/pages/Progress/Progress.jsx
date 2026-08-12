@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   CartesianGrid,
   Line,
@@ -15,12 +15,12 @@ import { progressService } from '../../services/progressService';
 import { workoutService } from '../../services/workoutService';
 
 const today = () => new Date().toISOString().slice(0, 10);
+const WORKOUT_DRAFT_STORAGE_KEY = 'getjackedcoach.workoutDraft';
 
 const sections = [
   { id: 'log-workout', label: 'Log Workout' },
   { id: 'log-pr', label: 'Log PR' },
   { id: 'training-history', label: 'Training History' },
-  { id: 'personal-records', label: 'Personal Records' },
   { id: 'strength-progress', label: 'Strength Progress' },
   { id: 'body-metrics', label: 'Body Metrics' },
 ];
@@ -67,7 +67,6 @@ const createSet = (setNumber) => ({
   setNumber,
   reps: '',
   weight: '',
-  targetReps: '',
   completed: true,
   isPlusSet: false,
   rpe: '',
@@ -135,31 +134,12 @@ const toWorkoutForm = (workout) => ({
     })) || [],
 });
 
-const toPrForm = (pr) => ({
-  exerciseName: pr.exerciseName || '',
-  weight: pr.weight ?? '',
-  reps: pr.reps ?? '',
-  oneRepMax: pr.oneRepMax ?? '',
-  estimatedOneRepMax: pr.estimatedOneRepMax ?? '',
-  date: pr.date ? pr.date.slice(0, 10) : today(),
-  notes: pr.notes || '',
-});
-
 const getPRValue = (pr) => Number(pr.estimatedOneRepMax || pr.oneRepMax || pr.weight || 0);
 const normalizeExercise = (name) => name?.trim().toLowerCase() || 'unknown';
 
-function MiniMetric({ label, value, detail }) {
-  return (
-    <div className="border-t border-stone-800 pt-4">
-      <p className="text-sm text-stone-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-stone-50">{value}</p>
-      {detail && <p className="mt-1 text-sm text-stone-400">{detail}</p>}
-    </div>
-  );
-}
-
 function Progress() {
   const { logout } = useAuth();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedSection = searchParams.get('section') || 'log-workout';
   const activeSection = sections.some((section) => section.id === requestedSection) ? requestedSection : 'log-workout';
@@ -177,6 +157,27 @@ function Progress() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const loadWorkoutDraft = () => {
+    const stateDraft = location.state?.workoutDraft;
+
+    if (stateDraft) {
+      return stateDraft;
+    }
+
+    const storedDraft = window.sessionStorage.getItem(WORKOUT_DRAFT_STORAGE_KEY);
+
+    if (!storedDraft) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(storedDraft);
+    } catch {
+      window.sessionStorage.removeItem(WORKOUT_DRAFT_STORAGE_KEY);
+      return null;
+    }
+  };
 
   const handleApiError = async (err, fallbackMessage) => {
     if (err.response?.status === 401) {
@@ -210,6 +211,28 @@ function Progress() {
 
   useEffect(() => {
     loadProgressData();
+  }, []);
+
+  useEffect(() => {
+    const workoutDraft = loadWorkoutDraft();
+
+    if (!workoutDraft) {
+      return;
+    }
+
+    setWorkoutForm(toWorkoutForm({
+      ...workoutDraft,
+      status: 'completed',
+      exercises: (workoutDraft.exercises || []).map((exercise) => ({
+        ...exercise,
+        sets: [],
+      })),
+    }));
+    setEditingWorkoutId(null);
+    setError('');
+    setSuccess(`${workoutDraft.templateName || workoutDraft.title} loaded. Add today's sets, reps, and weight.`);
+    setSearchParams({ section: 'log-workout' }, { replace: true });
+    window.sessionStorage.removeItem(WORKOUT_DRAFT_STORAGE_KEY);
   }, []);
 
   const plannedWorkouts = useMemo(
@@ -253,18 +276,16 @@ function Progress() {
     return [...bestByExercise.values()].sort((a, b) => b.estimatedOneRepMax - a.estimatedOneRepMax);
   }, [completedWorkouts]);
 
-  const prSummary = useMemo(() => {
-    const newest = [...prs].sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))[0];
-    const highest = [...prs].sort((a, b) => getPRValue(b) - getPRValue(a))[0];
-    const chartData = [...prs]
+  const prChartData = useMemo(
+    () =>
+      [...prs]
       .sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt))
       .map((pr) => ({
         label: shortDate(pr.date || pr.createdAt),
         estimatedOneRepMax: getPRValue(pr),
-      }));
-
-    return { newest, highest, chartData };
-  }, [prs]);
+      })),
+    [prs],
+  );
 
   const strengthChartData = useMemo(() => {
     const volumeByDate = completedWorkouts.reduce((groups, workout) => {
@@ -547,27 +568,10 @@ function Progress() {
       resetPrForm();
       setSuccess(editingPrId ? 'Personal record updated.' : 'Personal record logged.');
       await loadProgressData();
-      setSection('personal-records');
     } catch (err) {
       setError(await handleApiError(err, 'Unable to save personal record.'));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const deletePr = async (prId) => {
-    setError('');
-    setSuccess('');
-
-    try {
-      await prService.deletePR(prId);
-      if (editingPrId === prId) {
-        resetPrForm();
-      }
-      setSuccess('Personal record deleted.');
-      await loadProgressData();
-    } catch (err) {
-      setError(await handleApiError(err, 'Unable to delete personal record.'));
     }
   };
 
@@ -610,7 +614,7 @@ function Progress() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="section-title">Log Workout</h2>
-                  <p className="section-copy">Start from a planned template workout, customize today's exercises, then save it as completed.</p>
+                  <p className="section-copy">Create a workout manually or start from a finalized template, then add today's sets.</p>
                 </div>
                 {editingWorkoutId && (
                   <button type="button" onClick={resetWorkoutForm} className="btn-secondary px-3">
@@ -620,7 +624,7 @@ function Progress() {
               </div>
 
               <label className="mt-6 block">
-                <span className="text-sm font-medium text-stone-300">Planned workout from Templates</span>
+                <span className="text-sm font-medium text-stone-300">Existing planned workout</span>
                 <select value={editingWorkoutId || ''} onChange={handlePlannedWorkoutSelect} className="form-field">
                   <option value="">Create a workout manually or select a planned workout</option>
                   {plannedWorkouts.map((workout) => (
@@ -633,7 +637,7 @@ function Progress() {
 
               {plannedWorkouts.length === 0 && (
                 <p className="empty-state mt-4">
-                  No planned template workouts yet. Open Templates, choose a routine, and create today's workout.
+                  Create a workout manually or open Templates, finalize a routine, and it will load here automatically.
                 </p>
               )}
 
@@ -665,11 +669,11 @@ function Progress() {
                 </div>
 
                 {workoutForm.exercises.length === 0 ? (
-                  <p className="empty-state">Add exercises or select a planned template workout above.</p>
+                  <p className="empty-state">Add exercises manually or finalize a template to load exercises here.</p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {workoutForm.exercises.map((exercise, exerciseIndex) => (
-                      <article key={`workout-exercise-${exerciseIndex}`} className="rounded-xl border border-stone-800 bg-stone-950/35 p-4">
+                      <article key={`workout-exercise-${exerciseIndex}`} className="border-t border-stone-800 pt-5">
                         <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
                           <label className="block">
                             <span className="text-sm font-medium text-stone-300">Exercise name</span>
@@ -702,12 +706,12 @@ function Progress() {
 
                         {exercise.sets.length === 0 ? (
                           <p className="mt-4 rounded-lg border border-dashed border-stone-800 px-4 py-3 text-sm text-stone-500">
-                            No sets logged yet.
+                            No sets logged yet. Add sets for today's workout only.
                           </p>
                         ) : (
-                          <div className="mt-4 space-y-3">
+                          <div className="mt-4 divide-y divide-stone-800 border-y border-stone-800">
                             {exercise.sets.map((set, setIndex) => (
-                              <div key={`workout-set-${setIndex}`} className="grid gap-3 rounded-lg border border-stone-800 bg-[#0B0D0E] p-3 md:grid-cols-[72px_1fr_1fr_1fr_100px_auto] md:items-end">
+                              <div key={`workout-set-${setIndex}`} className="grid gap-3 py-4 md:grid-cols-[72px_1fr_1fr_100px_auto] md:items-end">
                                 <div className="text-sm font-semibold text-stone-400">Set {setIndex + 1}</div>
                                 <label className="block">
                                   <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Reps</span>
@@ -716,10 +720,6 @@ function Progress() {
                                 <label className="block">
                                   <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Weight</span>
                                   <input type="number" min="0" value={set.weight} onChange={(event) => updateWorkoutSet(exerciseIndex, setIndex, 'weight', event.target.value)} className="form-field" />
-                                </label>
-                                <label className="block">
-                                  <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Target</span>
-                                  <input type="number" min="0" value={set.targetReps} onChange={(event) => updateWorkoutSet(exerciseIndex, setIndex, 'targetReps', event.target.value)} className="form-field" />
                                 </label>
                                 <label className="flex items-center gap-2 text-sm text-stone-300">
                                   <input
@@ -814,132 +814,60 @@ function Progress() {
               ) : (
                 <div className="divide-y divide-stone-800 border-y border-stone-800">
                   {completedWorkouts.map((workout) => (
-                    <article key={workout._id} className="py-6">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
+                    <details key={workout._id} className="group py-5">
+                      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4">
                         <div>
                           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">{formatDate(workout.date)}</p>
                           <h3 className="mt-2 text-xl font-semibold text-stone-50">{workout.title}</h3>
-                          <p className="mt-1 text-sm text-stone-500">{Number(workout.totalVolume || 0)} lb total volume</p>
+                          <p className="mt-1 text-sm text-stone-500">
+                            {workout.exercises?.length || 0} exercises
+                            {workout.duration ? ` · ${workout.duration} min` : ''}
+                            {workout.totalVolume ? ` · ${Number(workout.totalVolume)} lb volume` : ''}
+                          </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setWorkoutForm(toWorkoutForm(workout));
-                            setEditingWorkoutId(workout._id);
-                            setSection('log-workout');
-                          }}
-                          className="btn-secondary px-3"
-                        >
-                          View Details
-                        </button>
-                      </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setWorkoutForm(toWorkoutForm(workout));
+                              setEditingWorkoutId(workout._id);
+                              setSection('log-workout');
+                            }}
+                            className="btn-secondary px-3"
+                          >
+                            Edit
+                          </button>
+                          <span className="text-sm font-semibold text-stone-500 group-open:hidden" aria-hidden="true">Show</span>
+                          <span className="hidden text-sm font-semibold text-stone-500 group-open:inline" aria-hidden="true">Hide</span>
+                        </div>
+                      </summary>
+
                       <div className="mt-5 space-y-4">
                         {workout.exercises?.map((exercise, exerciseIndex) => (
                           <div key={`${workout._id}-${exercise.exerciseName}-${exerciseIndex}`} className="border-l border-stone-800 pl-4">
                             <h4 className="font-semibold text-stone-100">{exercise.exerciseName}</h4>
                             {exercise.notes && <p className="mt-1 text-sm text-stone-500">{exercise.notes}</p>}
-                            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-stone-400">
-                              {exercise.sets?.map((set, setIndex) => (
-                                <span key={`${workout._id}-${exerciseIndex}-${setIndex}`}>
-                                  {Number(set.weight || 0)} x {Number(set.reps || 0)}
-                                  {set.isPlusSet ? ' plus' : ''}
-                                </span>
-                              ))}
-                            </div>
+                            {exercise.sets?.length ? (
+                              <div className="mt-2 space-y-1 text-sm text-stone-400">
+                                {exercise.sets.map((set, setIndex) => (
+                                  <p key={`${workout._id}-${exerciseIndex}-${setIndex}`}>
+                                    Set {setIndex + 1} - {Number(set.weight || 0)} lb x {Number(set.reps || 0)}
+                                    {set.isPlusSet ? ' · Plus set' : ''}
+                                  </p>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-2 text-sm text-stone-500">No sets logged.</p>
+                            )}
                           </div>
                         ))}
+                        {workout.notes && <p className="border-t border-stone-800 pt-4 text-sm text-stone-500">Notes: {workout.notes}</p>}
                       </div>
-                    </article>
+                    </details>
                   ))}
                 </div>
               )}
-            </section>
-          )}
-
-          {activeSection === 'personal-records' && (
-            <section className="space-y-6">
-              <section className="grid gap-6 md:grid-cols-3">
-                <MiniMetric
-                  label="Newest Manual PR"
-                  value={prSummary.newest?.exerciseName || 'None'}
-                  detail={prSummary.newest ? `${getPRValue(prSummary.newest)} lb - ${formatDate(prSummary.newest.date || prSummary.newest.createdAt)}` : 'Log a record manually'}
-                />
-                <MiniMetric
-                  label="Highest Manual PR"
-                  value={prSummary.highest ? `${getPRValue(prSummary.highest)} lb` : 'None'}
-                  detail={prSummary.highest?.exerciseName || 'No manual records yet'}
-                />
-                <MiniMetric label="Derived From Workouts" value={derivedWorkoutPrs.length} detail="Best completed workout performances" />
-              </section>
-
-              <section className="grid gap-6 lg:grid-cols-2">
-                <div className="quiet-card">
-                  <h2 className="section-title">Manual Personal Records</h2>
-                  {prs.length === 0 ? (
-                    <p className="empty-state mt-5">Log your first personal record to start tracking strength milestones.</p>
-                  ) : (
-                    <div className="mt-5 divide-y divide-stone-800">
-                      {[...prs]
-                        .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))
-                        .map((pr) => (
-                          <article key={pr._id} className="py-4">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div>
-                                <h3 className="font-semibold text-stone-50">{pr.exerciseName}</h3>
-                                <p className="mt-1 text-sm text-stone-400">
-                                  {pr.weight || 0} lb x {pr.reps || 0} - Estimated 1RM {getPRValue(pr)} lb
-                                </p>
-                                <p className="mt-1 text-sm text-stone-500">{formatDate(pr.date || pr.createdAt)}</p>
-                                {pr.notes && <p className="mt-2 text-sm text-stone-500">{pr.notes}</p>}
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPrForm(toPrForm(pr));
-                                    setEditingPrId(pr._id);
-                                    setSection('log-pr');
-                                  }}
-                                  className="btn-secondary px-3"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => deletePr(pr._id)}
-                                  className="btn-danger"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </article>
-                        ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="quiet-card">
-                  <h2 className="section-title">Derived From Logged Workouts</h2>
-                  {derivedWorkoutPrs.length === 0 ? (
-                    <p className="empty-state mt-5">Completed workout sets with reps and weight will create calculated PR signals here.</p>
-                  ) : (
-                    <div className="mt-5 divide-y divide-stone-800">
-                      {derivedWorkoutPrs.slice(0, 8).map((record) => (
-                        <article key={`${record.exerciseName}-${record.estimatedOneRepMax}`} className="py-4">
-                          <h3 className="font-semibold text-stone-50">{record.exerciseName}</h3>
-                          <p className="mt-1 text-sm text-stone-400">
-                            {record.weight} lb x {record.reps} - Estimated 1RM {record.estimatedOneRepMax} lb
-                          </p>
-                          <p className="mt-1 text-sm text-stone-500">
-                            {record.source} - {formatDate(record.date)}
-                          </p>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </section>
             </section>
           )}
 
@@ -966,12 +894,12 @@ function Progress() {
 
               <div className="quiet-card">
                 <h3 className="section-title">Manual PR Trend</h3>
-                {prSummary.chartData.length === 0 ? (
+                {prChartData.length === 0 ? (
                   <p className="empty-state mt-5">Manual PRs will chart here after you log them.</p>
                 ) : (
                   <div className="mt-6 h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={prSummary.chartData}>
+                      <LineChart data={prChartData}>
                         <CartesianGrid stroke="#292524" vertical={false} />
                         <XAxis dataKey="label" stroke="#78716c" tickLine={false} axisLine={false} />
                         <YAxis stroke="#78716c" tickLine={false} axisLine={false} />

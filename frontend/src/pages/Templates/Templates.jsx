@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { templateService } from '../../services/templateService';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const WORKOUT_DRAFT_STORAGE_KEY = 'getjackedcoach.workoutDraft';
 
 const emptyTemplate = {
   name: '',
@@ -16,7 +17,6 @@ const emptyExercise = {
   exerciseName: '',
   muscleGroup: '',
   notes: '',
-  sets: [],
 };
 
 const starterTemplates = [
@@ -25,13 +25,13 @@ const starterTemplates = [
     description: 'Chest, shoulders, and triceps hypertrophy workout.',
     category: 'bodybuilding',
     exercises: [
-      { exerciseName: 'Bench Press', muscleGroup: 'Chest', notes: '', sets: [] },
-      { exerciseName: 'Incline Dumbbell Press', muscleGroup: 'Chest', notes: '', sets: [] },
-      { exerciseName: 'Cable Fly', muscleGroup: 'Chest', notes: '', sets: [] },
-      { exerciseName: 'Overhead Press', muscleGroup: 'Shoulders', notes: '', sets: [] },
-      { exerciseName: 'Dumbbell Lateral Raise', muscleGroup: 'Shoulders', notes: '', sets: [] },
-      { exerciseName: 'Tricep Pushdown', muscleGroup: 'Triceps', notes: '', sets: [] },
-      { exerciseName: 'Overhead Rope Tricep Extension', muscleGroup: 'Triceps', notes: '', sets: [] },
+      { exerciseName: 'Bench Press', muscleGroup: 'Chest', notes: '' },
+      { exerciseName: 'Incline Dumbbell Press', muscleGroup: 'Chest', notes: '' },
+      { exerciseName: 'Cable Fly', muscleGroup: 'Chest', notes: '' },
+      { exerciseName: 'Overhead Press', muscleGroup: 'Shoulders', notes: '' },
+      { exerciseName: 'Dumbbell Lateral Raise', muscleGroup: 'Shoulders', notes: '' },
+      { exerciseName: 'Tricep Pushdown', muscleGroup: 'Triceps', notes: '' },
+      { exerciseName: 'Overhead Rope Tricep Extension', muscleGroup: 'Triceps', notes: '' },
     ],
   },
   {
@@ -39,14 +39,14 @@ const starterTemplates = [
     description: 'Back, rear delts, traps, and biceps.',
     category: 'bodybuilding',
     exercises: [
-      { exerciseName: 'Lat Pulldown', muscleGroup: 'Back', notes: '', sets: [] },
-      { exerciseName: 'Chest Supported Row', muscleGroup: 'Back', notes: '', sets: [] },
-      { exerciseName: 'Seated Cable Row', muscleGroup: 'Back', notes: '', sets: [] },
-      { exerciseName: 'Face Pull', muscleGroup: 'Rear Delts', notes: '', sets: [] },
-      { exerciseName: 'Reverse Pec Deck', muscleGroup: 'Rear Delts', notes: '', sets: [] },
-      { exerciseName: 'Dumbbell Shrugs', muscleGroup: 'Traps', notes: '', sets: [] },
-      { exerciseName: 'EZ Bar Curl', muscleGroup: 'Biceps', notes: '', sets: [] },
-      { exerciseName: 'Incline Dumbbell Curl', muscleGroup: 'Biceps', notes: '', sets: [] },
+      { exerciseName: 'Lat Pulldown', muscleGroup: 'Back', notes: '' },
+      { exerciseName: 'Chest Supported Row', muscleGroup: 'Back', notes: '' },
+      { exerciseName: 'Seated Cable Row', muscleGroup: 'Back', notes: '' },
+      { exerciseName: 'Face Pull', muscleGroup: 'Rear Delts', notes: '' },
+      { exerciseName: 'Reverse Pec Deck', muscleGroup: 'Rear Delts', notes: '' },
+      { exerciseName: 'Dumbbell Shrugs', muscleGroup: 'Traps', notes: '' },
+      { exerciseName: 'EZ Bar Curl', muscleGroup: 'Biceps', notes: '' },
+      { exerciseName: 'Incline Dumbbell Curl', muscleGroup: 'Biceps', notes: '' },
     ],
   },
   {
@@ -54,14 +54,14 @@ const starterTemplates = [
     description: 'Quads, hamstrings, glutes, and calves.',
     category: 'bodybuilding',
     exercises: [
-      { exerciseName: 'Back Squat', muscleGroup: 'Quads', notes: '', sets: [] },
-      { exerciseName: 'Leg Press', muscleGroup: 'Quads', notes: '', sets: [] },
-      { exerciseName: 'Leg Extension', muscleGroup: 'Quads', notes: '', sets: [] },
-      { exerciseName: 'Romanian Deadlift', muscleGroup: 'Hamstrings', notes: '', sets: [] },
-      { exerciseName: 'Seated Leg Curl', muscleGroup: 'Hamstrings', notes: '', sets: [] },
-      { exerciseName: 'Walking Lunges', muscleGroup: 'Glutes', notes: '', sets: [] },
-      { exerciseName: 'Standing Calf Raise', muscleGroup: 'Calves', notes: '', sets: [] },
-      { exerciseName: 'Seated Calf Raise', muscleGroup: 'Calves', notes: '', sets: [] },
+      { exerciseName: 'Back Squat', muscleGroup: 'Quads', notes: '' },
+      { exerciseName: 'Leg Press', muscleGroup: 'Quads', notes: '' },
+      { exerciseName: 'Leg Extension', muscleGroup: 'Quads', notes: '' },
+      { exerciseName: 'Romanian Deadlift', muscleGroup: 'Hamstrings', notes: '' },
+      { exerciseName: 'Seated Leg Curl', muscleGroup: 'Hamstrings', notes: '' },
+      { exerciseName: 'Walking Lunges', muscleGroup: 'Glutes', notes: '' },
+      { exerciseName: 'Standing Calf Raise', muscleGroup: 'Calves', notes: '' },
+      { exerciseName: 'Seated Calf Raise', muscleGroup: 'Calves', notes: '' },
     ],
   },
   {
@@ -69,14 +69,14 @@ const starterTemplates = [
     description: 'Balanced upper body strength and hypertrophy.',
     category: 'strength',
     exercises: [
-      { exerciseName: 'Bench Press', muscleGroup: 'Chest', notes: '', sets: [] },
-      { exerciseName: 'Incline Dumbbell Press', muscleGroup: 'Chest', notes: '', sets: [] },
-      { exerciseName: 'Pull Ups', muscleGroup: 'Back', notes: '', sets: [] },
-      { exerciseName: 'Barbell Row', muscleGroup: 'Back', notes: '', sets: [] },
-      { exerciseName: 'Overhead Press', muscleGroup: 'Shoulders', notes: '', sets: [] },
-      { exerciseName: 'Dumbbell Lateral Raise', muscleGroup: 'Shoulders', notes: '', sets: [] },
-      { exerciseName: 'Tricep Pushdown', muscleGroup: 'Triceps', notes: '', sets: [] },
-      { exerciseName: 'Dumbbell Curl', muscleGroup: 'Biceps', notes: '', sets: [] },
+      { exerciseName: 'Bench Press', muscleGroup: 'Chest', notes: '' },
+      { exerciseName: 'Incline Dumbbell Press', muscleGroup: 'Chest', notes: '' },
+      { exerciseName: 'Pull Ups', muscleGroup: 'Back', notes: '' },
+      { exerciseName: 'Barbell Row', muscleGroup: 'Back', notes: '' },
+      { exerciseName: 'Overhead Press', muscleGroup: 'Shoulders', notes: '' },
+      { exerciseName: 'Dumbbell Lateral Raise', muscleGroup: 'Shoulders', notes: '' },
+      { exerciseName: 'Tricep Pushdown', muscleGroup: 'Triceps', notes: '' },
+      { exerciseName: 'Dumbbell Curl', muscleGroup: 'Biceps', notes: '' },
     ],
   },
   {
@@ -84,38 +84,30 @@ const starterTemplates = [
     description: 'Complete lower body training.',
     category: 'bodybuilding',
     exercises: [
-      { exerciseName: 'Back Squat', muscleGroup: 'Quads', notes: '', sets: [] },
-      { exerciseName: 'Romanian Deadlift', muscleGroup: 'Hamstrings', notes: '', sets: [] },
-      { exerciseName: 'Leg Press', muscleGroup: 'Quads', notes: '', sets: [] },
-      { exerciseName: 'Leg Extension', muscleGroup: 'Quads', notes: '', sets: [] },
-      { exerciseName: 'Hamstring Curl', muscleGroup: 'Hamstrings', notes: '', sets: [] },
-      { exerciseName: 'Bulgarian Split Squat', muscleGroup: 'Glutes', notes: '', sets: [] },
-      { exerciseName: 'Standing Calf Raise', muscleGroup: 'Calves', notes: '', sets: [] },
-      { exerciseName: 'Seated Calf Raise', muscleGroup: 'Calves', notes: '', sets: [] },
+      { exerciseName: 'Back Squat', muscleGroup: 'Quads', notes: '' },
+      { exerciseName: 'Romanian Deadlift', muscleGroup: 'Hamstrings', notes: '' },
+      { exerciseName: 'Leg Press', muscleGroup: 'Quads', notes: '' },
+      { exerciseName: 'Leg Extension', muscleGroup: 'Quads', notes: '' },
+      { exerciseName: 'Hamstring Curl', muscleGroup: 'Hamstrings', notes: '' },
+      { exerciseName: 'Bulgarian Split Squat', muscleGroup: 'Glutes', notes: '' },
+      { exerciseName: 'Standing Calf Raise', muscleGroup: 'Calves', notes: '' },
+      { exerciseName: 'Seated Calf Raise', muscleGroup: 'Calves', notes: '' },
     ],
   },
 ];
 
-const createSet = (setNumber) => ({
-  setNumber,
-  targetReps: '',
-  weight: '',
-  isPlusSet: false,
-});
-
-const numberOrZero = (value) => (value === '' ? 0 : Number(value));
-
 const normalizeTemplatePayload = (template) => ({
   ...template,
-  exercises: template.exercises.map((exercise) => ({
-    ...exercise,
-    sets: exercise.sets.map((set, index) => ({
-      setNumber: Number(set.setNumber || index + 1),
-      targetReps: numberOrZero(set.targetReps),
-      weight: numberOrZero(set.weight),
-      isPlusSet: Boolean(set.isPlusSet),
+  name: template.name.trim(),
+  description: template.description || '',
+  exercises: template.exercises
+    .filter((exercise) => exercise.exerciseName.trim())
+    .map((exercise) => ({
+      exerciseName: exercise.exerciseName.trim(),
+      muscleGroup: exercise.muscleGroup || '',
+      notes: exercise.notes || '',
+      sets: [],
     })),
-  })),
 });
 
 const toTemplateForm = (template) => ({
@@ -127,25 +119,34 @@ const toTemplateForm = (template) => ({
       exerciseName: exercise.exerciseName || '',
       muscleGroup: exercise.muscleGroup || '',
       notes: exercise.notes || '',
-      sets:
-        exercise.sets?.map((set) => ({
-          setNumber: set.setNumber,
-          targetReps: set.targetReps ?? '',
-          weight: set.weight ?? '',
-          isPlusSet: Boolean(set.isPlusSet),
-        })) || [],
     })) || [],
+});
+
+const createWorkoutDraft = (template) => ({
+  source: 'template',
+  templateName: template.name,
+  title: template.name,
+  date: new Date().toISOString().slice(0, 10),
+  type: template.category || 'strength',
+  duration: '',
+  notes: template.description || '',
+  exercises: (template.exercises || []).map((exercise) => ({
+    exerciseName: exercise.exerciseName,
+    muscleGroup: exercise.muscleGroup || '',
+    notes: exercise.notes || '',
+    sets: [],
+  })),
 });
 
 function Templates() {
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [formData, setFormData] = useState(emptyTemplate);
   const [editingId, setEditingId] = useState(null);
-  const [startTarget, setStartTarget] = useState(null);
-  const [plannedDate, setPlannedDate] = useState(today());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -208,55 +209,21 @@ function Templates() {
     }));
   };
 
-  const addSet = (exerciseIndex) => {
-    setFormData((current) => ({
-      ...current,
-      exercises: current.exercises.map((exercise, index) =>
-        index === exerciseIndex
-          ? {
-              ...exercise,
-              sets: [...exercise.sets, createSet(exercise.sets.length + 1)],
-            }
-          : exercise,
-      ),
-    }));
-  };
-
-  const updateSet = (exerciseIndex, setIndex, field, value) => {
-    setFormData((current) => ({
-      ...current,
-      exercises: current.exercises.map((exercise, index) =>
-        index === exerciseIndex
-          ? {
-              ...exercise,
-              sets: exercise.sets.map((set, currentSetIndex) =>
-                currentSetIndex === setIndex ? { ...set, [field]: value } : set,
-              ),
-            }
-          : exercise,
-      ),
-    }));
-  };
-
-  const removeSet = (exerciseIndex, setIndex) => {
-    setFormData((current) => ({
-      ...current,
-      exercises: current.exercises.map((exercise, index) =>
-        index === exerciseIndex
-          ? {
-              ...exercise,
-              sets: exercise.sets
-                .filter((_, currentSetIndex) => currentSetIndex !== setIndex)
-                .map((set, nextIndex) => ({ ...set, setNumber: nextIndex + 1 })),
-            }
-          : exercise,
-      ),
-    }));
-  };
-
   const resetForm = () => {
     setFormData({ ...emptyTemplate, exercises: [] });
     setEditingId(null);
+  };
+
+  const validateTemplate = () => {
+    if (!formData.name.trim()) {
+      return 'Template name is required.';
+    }
+
+    if (!formData.exercises.some((exercise) => exercise.exerciseName.trim())) {
+      return 'Add at least one exercise before finalizing a template.';
+    }
+
+    return '';
   };
 
   const handleSubmit = async (event) => {
@@ -264,8 +231,10 @@ function Templates() {
     setError('');
     setSuccess('');
 
-    if (!formData.name.trim()) {
-      setError('Template name is required.');
+    const validationError = validateTemplate();
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -288,6 +257,38 @@ function Templates() {
       setError(await handleApiError(err, 'Unable to save template.'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const finalizeTemplate = async () => {
+    setError('');
+    setSuccess('');
+
+    const validationError = validateTemplate();
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setFinalizing(true);
+
+    try {
+      const payload = normalizeTemplatePayload(formData);
+      const response = editingId
+        ? await templateService.updateTemplate(editingId, payload)
+        : await templateService.createTemplate(payload);
+      const finalizedTemplate = response.data || payload;
+      const workoutDraft = createWorkoutDraft(finalizedTemplate);
+
+      window.sessionStorage.setItem(WORKOUT_DRAFT_STORAGE_KEY, JSON.stringify(workoutDraft));
+      navigate('/progress?section=log-workout', {
+        state: { workoutDraft },
+      });
+    } catch (err) {
+      setError(await handleApiError(err, 'Unable to finalize template.'));
+    } finally {
+      setFinalizing(false);
     }
   };
 
@@ -319,27 +320,12 @@ function Templates() {
     }
   };
 
-  const startWorkout = async (event) => {
-    event.preventDefault();
-
-    if (!startTarget) {
-      return;
-    }
-
-    setSaving(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      await templateService.startWorkoutFromTemplate(startTarget._id, plannedDate);
-      setSuccess(`Planned workout created from ${startTarget.name}.`);
-      setStartTarget(null);
-      setPlannedDate(today());
-    } catch (err) {
-      setError(await handleApiError(err, 'Unable to start workout from template.'));
-    } finally {
-      setSaving(false);
-    }
+  const startSavedTemplate = (template) => {
+    const workoutDraft = createWorkoutDraft(toTemplateForm(template));
+    window.sessionStorage.setItem(WORKOUT_DRAFT_STORAGE_KEY, JSON.stringify(workoutDraft));
+    navigate('/progress?section=log-workout', {
+      state: { workoutDraft },
+    });
   };
 
   return (
@@ -352,7 +338,7 @@ function Templates() {
       <header className="border-b border-stone-800 pb-8">
         <p className="eyebrow">Reusable Training</p>
         <h1 className="page-title">Workout Templates</h1>
-        <p className="page-copy">Build repeatable routines and turn them into planned workouts with one date.</p>
+        <p className="page-copy">Choose exercises, finalize a template, then log today's sets inside Progress.</p>
       </header>
 
       {error && <p className="status-error">{error}</p>}
@@ -363,7 +349,7 @@ function Templates() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="section-title">{editingId ? 'Edit Template' : 'Create Template'}</h2>
-              <p className="section-copy">Add reusable exercises first. Sets stay empty until you add them manually.</p>
+              <p className="section-copy">Templates only define the exercise list. Sets, reps, and weight are logged during the workout.</p>
             </div>
             {editingId && (
               <button type="button" onClick={resetForm} className="btn-secondary px-3">
@@ -409,7 +395,7 @@ function Templates() {
               <p className="empty-state">Add exercises to make this template useful.</p>
             ) : (
               formData.exercises.map((exercise, exerciseIndex) => (
-                <article key={`exercise-${exerciseIndex}`} className="rounded-xl border border-stone-800 bg-stone-950/35 p-4 sm:p-5">
+                <article key={`exercise-${exerciseIndex}`} className="border-t border-stone-800 pt-5">
                   <details open className="group">
                     <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
                       <div>
@@ -451,78 +437,14 @@ function Templates() {
                       </label>
                     </div>
 
-                    <div className="mt-5 border-t border-stone-800 pt-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-stone-200">Sets</p>
-                          <p className="mt-1 text-xs text-stone-500">Add sets only when this template needs them.</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => addSet(exerciseIndex)} className="btn-secondary px-3">
-                            Add Set
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeExercise(exerciseIndex)}
-                            className="btn-danger"
-                          >
-                            Remove Exercise
-                          </button>
-                        </div>
-                      </div>
-
-                      {exercise.sets.length === 0 ? (
-                        <p className="mt-4 rounded-lg border border-dashed border-stone-800 px-4 py-3 text-sm text-stone-500">
-                          No sets yet. Use Add Set when you want this exercise to include a reusable set.
-                        </p>
-                      ) : (
-                        <div className="mt-4 space-y-3">
-                          {exercise.sets.map((set, setIndex) => (
-                            <div
-                              key={`set-${setIndex}`}
-                              className="grid gap-3 rounded-lg border border-stone-800 bg-[#0B0D0E] p-3 md:grid-cols-[72px_1fr_1fr_120px_auto] md:items-end"
-                            >
-                              <div className="text-sm font-semibold text-stone-400">Set {set.setNumber}</div>
-                              <label className="block">
-                                <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Reps</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={set.targetReps}
-                                  onChange={(event) => updateSet(exerciseIndex, setIndex, 'targetReps', event.target.value)}
-                                  className="form-field"
-                                />
-                              </label>
-                              <label className="block">
-                                <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Weight</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={set.weight}
-                                  onChange={(event) => updateSet(exerciseIndex, setIndex, 'weight', event.target.value)}
-                                  className="form-field"
-                                />
-                              </label>
-                              <label className="flex items-center gap-2 text-sm text-stone-300">
-                                <input
-                                  type="checkbox"
-                                  checked={set.isPlusSet}
-                                  onChange={(event) => updateSet(exerciseIndex, setIndex, 'isPlusSet', event.target.checked)}
-                                  className="h-4 w-4 rounded border-stone-700 bg-stone-950 accent-[#D4AF37]"
-                                />
-                                Plus Set
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => removeSet(exerciseIndex, setIndex)}
-                                className="btn-danger"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeExercise(exerciseIndex)}
+                        className="btn-danger"
+                      >
+                        Remove Exercise
+                      </button>
                     </div>
                   </details>
                 </article>
@@ -530,15 +452,20 @@ function Templates() {
             )}
           </div>
 
-          <button type="submit" disabled={saving} className="btn-primary mt-6">
-            {saving ? 'Saving...' : editingId ? 'Update Template' : 'Create Template'}
-          </button>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button type="button" disabled={finalizing || saving} onClick={finalizeTemplate} className="btn-primary">
+              {finalizing ? 'Finalizing...' : 'Finalize Template'}
+            </button>
+            <button type="submit" disabled={saving || finalizing} className="btn-secondary">
+              {saving ? 'Saving...' : editingId ? 'Save Template' : 'Save Without Logging'}
+            </button>
+          </div>
         </form>
 
         <section className="space-y-6">
           <section className="quiet-card">
             <h2 className="section-title">Starter Templates</h2>
-            <p className="section-copy">Use one as a starting point, then save it as your own editable template.</p>
+            <p className="section-copy">Use one as a starting point, customize the exercise list, then finalize it.</p>
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {starterTemplates.map((template) => (
                 <button
@@ -578,8 +505,8 @@ function Templates() {
                         <button type="button" onClick={() => editTemplate(template)} className="btn-secondary px-3">
                           Edit
                         </button>
-                        <button type="button" onClick={() => setStartTarget(template)} className="btn-primary px-3">
-                          Start
+                        <button type="button" onClick={() => startSavedTemplate(template)} className="btn-primary px-3">
+                          Log Workout
                         </button>
                         <button
                           type="button"
@@ -602,28 +529,6 @@ function Templates() {
         </section>
       </section>
 
-      {startTarget && (
-        <section className="quiet-card">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="section-title">Start Workout</h2>
-              <p className="section-copy">Create a planned workout from “{startTarget.name}”.</p>
-            </div>
-            <button type="button" onClick={() => setStartTarget(null)} className="btn-secondary px-3">
-              Cancel
-            </button>
-          </div>
-          <form onSubmit={startWorkout} className="mt-5 flex flex-wrap items-end gap-3">
-            <label className="block">
-              <span className="text-sm font-medium text-stone-300">Planned date</span>
-              <input type="date" value={plannedDate} onChange={(event) => setPlannedDate(event.target.value)} className="form-field" required />
-            </label>
-            <button type="submit" disabled={saving} className="btn-primary">
-              {saving ? 'Creating...' : 'Create Planned Workout'}
-            </button>
-          </form>
-        </section>
-      )}
     </motion.section>
   );
 }

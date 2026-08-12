@@ -86,7 +86,7 @@ export interface WorkoutTemplateSet {
 export interface WorkoutTemplateExercise {
   exerciseName: string;
   muscleGroup?: string;
-  sets: WorkoutTemplateSet[];
+  sets?: WorkoutTemplateSet[];
   notes?: string;
 }
 
