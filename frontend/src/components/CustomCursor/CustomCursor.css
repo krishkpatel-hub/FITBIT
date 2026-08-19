@@ -1,7 +1,7 @@
 :root {
   --cursor-dot: #2f4f46;
-  --cursor-ring: rgba(47, 79, 70, 0.55);
-  --cursor-ring-dark: rgba(245, 245, 242, 0.58);
+  --cursor-ring: rgba(47, 79, 70, 0.5);
+  --cursor-ring-dark: rgba(245, 245, 242, 0.5);
 }
 
 .custom-cursor-enabled,
@@ -41,15 +41,15 @@
 }
 
 .custom-cursor__dot {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   border-radius: 999px;
   background: var(--cursor-dot);
 }
 
 .custom-cursor__ring-position {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
 }
 
 .custom-cursor__ring-visual {

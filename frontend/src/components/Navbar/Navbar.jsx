@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { appNavigationLinks } from '../../utils/navigation';
+import { smoothScrollTo } from '../../lib/lenis.js';
 import Logo from '../Logo.jsx';
 
 const landingLinks = [
@@ -24,14 +25,7 @@ function Navbar() {
   const handleAnchorClick = (event, href) => {
     event.preventDefault();
     setIsMenuOpen(false);
-
-    const target = document.querySelector(href);
-    if (!target) {
-      return;
-    }
-
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+    smoothScrollTo(href);
   };
 
   const publicNav = (

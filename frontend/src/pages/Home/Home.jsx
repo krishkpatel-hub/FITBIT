@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { smoothScrollTo } from '../../lib/lenis.js';
 
 const proofItems = ['Adaptive programming', 'Workout logging', 'Progress analytics', 'Built-in coach'];
 
@@ -53,14 +54,7 @@ const revealTransition = { duration: 0.32, ease: 'easeOut' };
 
 const scrollToSection = (event, selector) => {
   event.preventDefault();
-  const target = document.querySelector(selector);
-
-  if (!target) {
-    return;
-  }
-
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  target.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+  smoothScrollTo(selector);
 };
 
 function SectionIntro({ eyebrow, title, copy }) {

@@ -2,10 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Lenis smooth scroll: recommended reset. Lenis drives the real document scroll
+   position (no transform-wrapped content), so it keeps native scroll-behavior off
+   while it's active and hands scrolling straight back when stopped/absent. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  /* Clip horizontal overflow here, on the true scrolling root, instead of on a
+     nested wrapper div: overflow-x set without overflow-y on an inner element
+     silently promotes that element's overflow-y to "auto" per the CSS Overflow
+     spec, which makes it a distinct scroll container and breaks position:sticky
+     on its descendants (e.g. the nav bar). */
+  overflow-x: hidden;
   background: #EEECE5;
   color: #151714;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

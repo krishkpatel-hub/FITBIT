@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import './CustomCursor.css';
 
-const DOT_SIZE = 6;
-const RING_SIZE = 32;
-const TRAIL_LERP = 0.14;
+const DOT_SIZE = 4;
+const RING_SIZE = 36;
+const TRAIL_LERP = 0.12;
 
 const interactiveSelector = [
   'a',

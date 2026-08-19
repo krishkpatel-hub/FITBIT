@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar/Navbar.jsx';
 import Footer from '../components/Footer/Footer.jsx';
 import CustomCursor from '../components/CustomCursor/CustomCursor.jsx';
+import SmoothScroll from '../components/SmoothScroll/SmoothScroll.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 function MainLayout() {
@@ -20,7 +21,8 @@ function MainLayout() {
   }, []);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[#EEECE5] text-[#151714]">
+    <div className="relative flex min-h-screen flex-col bg-[#EEECE5] text-[#151714]">
+      <SmoothScroll />
       <CustomCursor />
       <Navbar />
       <motion.main
