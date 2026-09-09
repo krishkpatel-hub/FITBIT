@@ -15,3 +15,14 @@ const buildAuthRateLimit = (message) =>
 export const registerLimiter = buildAuthRateLimit('Too many registration attempts. Please try again later.');
 export const loginLimiter = buildAuthRateLimit('Too many login attempts. Please try again later.');
 export const passwordResetLimiter = buildAuthRateLimit('Too many password reset attempts. Please try again later.');
+
+export const coachLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many Coach requests. Please try again later.',
+  },
+});

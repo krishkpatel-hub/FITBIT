@@ -126,6 +126,21 @@ Users register or log in through `/api/auth`. The backend verifies credentials, 
 
 Controllers handle request validation and feature behavior. Routes stay grouped by domain: auth, users, training maxes, workouts, templates, progress, PRs, dashboard, recommendations, and coach insights.
 
+### AI Coach Architecture
+
+The Coach feature uses server-side OpenAI Responses API tool calling:
+
+```text
+React Coach UI
+  -> Authenticated Express API
+  -> OpenAI Responses API
+  -> Typed read-only Coach tools
+  -> Existing Mongoose models and services
+  -> MongoDB
+```
+
+The LLM has no direct MongoDB access. User identity comes only from the JWT-authenticated `req.user` value, not from model-controlled tool arguments or request bodies. Coach tools are allowlisted, server-validated, read-only, and scoped to the authenticated user before any database query runs. Tool results are minimized before being sent back to the model, and the tool-call loop has a hard round limit to prevent runaway agent execution.
+
 ### Database
 
 MongoDB data is modeled with Mongoose. User-created resources include a `user` reference so queries can remain scoped to the authenticated user.
@@ -193,6 +208,7 @@ API groups:
 - `/api/recommendations` for recommendation records
 - `/api/dashboard` for dashboard summary data
 - `/api/coach/insights` for generated coach insights
+- `POST /api/coach/chat` for the LLM-powered training coach
 - `/api/demo/seed` for development-only demo data
 
 ## Local Setup
@@ -254,6 +270,8 @@ Reference placeholders are available in `.env.example`, `backend/.env.example`, 
 | `MONGO_URI` | Yes | MongoDB Atlas connection string. |
 | `JWT_SECRET` | Yes | Secret used to sign and verify JWTs. |
 | `JWT_EXPIRES_IN` | No | JWT lifetime. Defaults to `30d`. |
+| `OPENAI_API_KEY` | Yes for Coach chat | Server-side OpenAI API key. Never expose this in frontend variables. |
+| `OPENAI_MODEL` | No | OpenAI model for Coach chat. Defaults to `gpt-4.1-mini`. |
 | `CLOUDINARY_CLOUD_NAME` | No | Cloudinary upload configuration. |
 | `CLOUDINARY_API_KEY` | No | Cloudinary upload configuration. |
 | `CLOUDINARY_API_SECRET` | No | Cloudinary upload configuration. |

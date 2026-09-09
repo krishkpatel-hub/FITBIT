@@ -22,6 +22,6 @@ export const errorHandler = (err, req, res, next) => {
 
   res.status(statusCode).json({
     success: false,
-    message: isProduction && statusCode >= 500 ? 'Internal server error' : err.message,
+    message: isProduction && statusCode >= 500 && !err.expose ? 'Internal server error' : err.message,
   });
 };

@@ -20,6 +20,13 @@ const formatType = (type = '') =>
 const sortByPriority = (insights) =>
   [...insights].sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0));
 
+const suggestedQuestions = [
+  'What should I train next?',
+  'How has my bench changed recently?',
+  'Summarize my recent training.',
+  'What is a plus set?',
+];
+
 function InsightRow({ insight }) {
   return (
     <article className="border-t border-stone-800 py-4 first:border-t-0 first:pt-0 last:pb-0">
@@ -66,6 +73,16 @@ function Coach() {
   const [insights, setInsights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [chatError, setChatError] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [conversation, setConversation] = useState([
+    {
+      role: 'coach',
+      content: 'Ask about your training, progress, or current program. I will use your logged data when it is needed.',
+      sources: [],
+    },
+  ]);
 
   const groupedInsights = useMemo(() => {
     const sortedInsights = sortByPriority(insights);
@@ -101,6 +118,51 @@ function Coach() {
     loadInsights();
   }, [logout]);
 
+  const submitCoachMessage = async (event, suggestedMessage) => {
+    event?.preventDefault();
+
+    if (chatLoading) return;
+
+    const outgoingMessage = (suggestedMessage || message).trim();
+
+    if (!outgoingMessage) {
+      setChatError('Enter a question for Coach.');
+      return;
+    }
+
+    setChatError('');
+    setChatLoading(true);
+    setMessage('');
+    setConversation((current) => [...current, { role: 'user', content: outgoingMessage, sources: [] }]);
+
+    try {
+      const response = await coachService.sendCoachMessage(outgoingMessage);
+      setConversation((current) => [
+        ...current,
+        {
+          role: 'coach',
+          content: response.data.answer,
+          sources: response.data.sources || [],
+        },
+      ]);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        await logout();
+        return;
+      }
+
+      if (err.response?.status === 429) {
+        setChatError(err.response?.data?.message || 'Coach is receiving too many requests. Please try again shortly.');
+      } else if (err.code === 'ECONNABORTED') {
+        setChatError('Coach took too long to respond. Please try again.');
+      } else {
+        setChatError(err.response?.data?.message || 'Unable to reach Coach right now. Please try again.');
+      }
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   return (
     <section className="page-stack">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -115,6 +177,76 @@ function Coach() {
           View Analytics
         </Link>
       </div>
+
+      <section className="quiet-card">
+        <div className="flex flex-col gap-3 border-b border-stone-800 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="section-title">Ask Coach</h2>
+            <p className="section-copy">Ask about your training, progress, or current program.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestedQuestions.map((question) => (
+              <button
+                key={question}
+                type="button"
+                className="btn-secondary text-xs"
+                disabled={chatLoading}
+                onClick={(event) => submitCoachMessage(event, question)}
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-4" aria-live="polite">
+          {conversation.map((entry, index) => (
+            <article
+              key={`${entry.role}-${index}`}
+              className={entry.role === 'user' ? 'border-l border-amber-300/60 pl-4' : 'border-l border-stone-700 pl-4'}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
+                {entry.role === 'user' ? 'You' : 'Coach'}
+              </p>
+              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-stone-300">{entry.content}</p>
+              {entry.sources?.length > 0 && (
+                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-stone-600">
+                  Sources: {entry.sources.map((source) => source.replace(/_/g, ' ')).join(', ')}
+                </p>
+              )}
+            </article>
+          ))}
+
+          {chatLoading && <p className="text-sm text-stone-400">Reviewing your training...</p>}
+        </div>
+
+        {chatError && (
+          <p role="alert" className="status-error mt-5">
+            {chatError}
+          </p>
+        )}
+
+        <form className="mt-5 flex flex-col gap-3 sm:flex-row" onSubmit={submitCoachMessage}>
+          <label className="sr-only" htmlFor="coach-message">
+            Ask about your training
+          </label>
+          <input
+            id="coach-message"
+            className="input-field flex-1"
+            value={message}
+            maxLength={1000}
+            placeholder="Ask about your training..."
+            disabled={chatLoading}
+            onChange={(event) => {
+              setMessage(event.target.value);
+              if (chatError) setChatError('');
+            }}
+          />
+          <button type="submit" className="btn-primary sm:w-auto" disabled={chatLoading}>
+            {chatLoading ? 'Sending...' : 'Send'}
+          </button>
+        </form>
+      </section>
 
       {error && (
         <p role="alert" className="status-error">

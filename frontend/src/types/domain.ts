@@ -175,3 +175,8 @@ export interface CoachInsight {
   dataSource?: string;
   createdAt?: ISODateString;
 }
+
+export interface CoachChatResponse {
+  answer: string;
+  sources: string[];
+}
