@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { analyticsService } from '../../services/analyticsService';
 
 const liftLabels = {
@@ -316,6 +317,7 @@ function ChartShell({ title, empty, children }) {
 
 function Analytics() {
   const { logout } = useAuth();
+  const realtime = useRealtime();
   const [analyticsData, setAnalyticsData] = useState({
     workouts: [],
     progressLogs: [],
@@ -326,29 +328,37 @@ function Analytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const loadAnalytics = async () => {
-      setLoading(true);
-      setError('');
+  const loadAnalytics = async () => {
+    setLoading(true);
+    setError('');
 
-      try {
-        const data = await analyticsService.getAnalyticsData();
-        setAnalyticsData(data);
-      } catch (err) {
-        if (err.response?.status === 401) {
-          await logout();
-          setError('Your session expired. Please log in again.');
-          return;
-        }
-
-        setError(err.response?.data?.message || 'Unable to load analytics.');
-      } finally {
-        setLoading(false);
+    try {
+      const data = await analyticsService.getAnalyticsData();
+      setAnalyticsData(data);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        await logout();
+        setError('Your session expired. Please log in again.');
+        return;
       }
-    };
 
+      setError(err.response?.data?.message || 'Unable to load analytics.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadAnalytics();
   }, [logout]);
+
+  useEffect(() => {
+    if (!realtime) return undefined;
+
+    return realtime.subscribe(['workout.updated', 'workout.completed', 'progress.updated'], () => {
+      loadAnalytics();
+    });
+  }, [realtime]);
 
   const analytics = useMemo(() => {
     const rangeStart = getRangeStart(filter);

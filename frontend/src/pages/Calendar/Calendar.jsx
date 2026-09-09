@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import CalendarGrid from '../../components/Calendar/Calendar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { workoutService } from '../../services/workoutService';
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
@@ -94,6 +95,7 @@ function WorkoutDetail({ workout, onDuplicate }) {
 
 function CalendarPage() {
   const { logout } = useAuth();
+  const realtime = useRealtime();
   const [workouts, setWorkouts] = useState([]);
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const [monthDate, setMonthDate] = useState(new Date());
@@ -131,6 +133,14 @@ function CalendarPage() {
   useEffect(() => {
     loadWorkouts();
   }, []);
+
+  useEffect(() => {
+    if (!realtime) return undefined;
+
+    return realtime.subscribe(['workout.updated', 'workout.completed'], () => {
+      loadWorkouts();
+    });
+  }, [realtime]);
 
   const filteredWorkouts = useMemo(() => {
     const exerciseQuery = filters.exerciseName.trim().toLowerCase();

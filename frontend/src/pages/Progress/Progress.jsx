@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { prService } from '../../services/prService';
 import { progressService } from '../../services/progressService';
 import { workoutService } from '../../services/workoutService';
@@ -139,6 +140,7 @@ const normalizeExercise = (name) => name?.trim().toLowerCase() || 'unknown';
 
 function Progress() {
   const { logout } = useAuth();
+  const realtime = useRealtime();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedSection = searchParams.get('section') || 'log-workout';
@@ -212,6 +214,14 @@ function Progress() {
   useEffect(() => {
     loadProgressData();
   }, []);
+
+  useEffect(() => {
+    if (!realtime) return undefined;
+
+    return realtime.subscribe(['workout.updated', 'workout.completed', 'progress.updated'], () => {
+      loadProgressData();
+    });
+  }, [realtime]);
 
   useEffect(() => {
     const workoutDraft = loadWorkoutDraft();

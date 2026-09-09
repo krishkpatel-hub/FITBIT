@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { dashboardService } from '../../services/dashboardService';
 import { demoService } from '../../services/demoService';
 import { trainingMaxService } from '../../services/trainingMaxService';
@@ -60,6 +61,7 @@ const formatDate = (date) => {
 
 function Dashboard() {
   const { logout } = useAuth();
+  const realtime = useRealtime();
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [trainingMaxes, setTrainingMaxes] = useState([]);
@@ -130,6 +132,14 @@ function Dashboard() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  useEffect(() => {
+    if (!realtime) return undefined;
+
+    return realtime.subscribe(['workout.updated', 'workout.completed', 'progress.updated'], () => {
+      loadDashboard();
+    });
+  }, [realtime]);
 
   const handleOneRepMaxChange = (liftName, value) => {
     setOneRepMaxes((current) => ({

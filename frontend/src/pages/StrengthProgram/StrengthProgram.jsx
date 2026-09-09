@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { trainingMaxService } from '../../services/trainingMaxService';
 import { workoutService } from '../../services/workoutService';
 
@@ -70,6 +71,7 @@ const getActiveProgramWeekNumber = (programWeeks) => {
 
 function StrengthProgram() {
   const { logout } = useAuth();
+  const realtime = useRealtime();
   const location = useLocation();
   const generatedWeekFromNavigation = Number(location.state?.generatedWeek || 1);
   const [trainingMaxes, setTrainingMaxes] = useState([]);
@@ -215,6 +217,14 @@ function StrengthProgram() {
   useEffect(() => {
     loadTrainingMaxes();
   }, []);
+
+  useEffect(() => {
+    if (!realtime) return undefined;
+
+    return realtime.subscribe(['workout.updated', 'workout.completed'], () => {
+      loadTrainingMaxes();
+    });
+  }, [realtime]);
 
   useEffect(() => {
     setActiveWorkoutIndex(0);

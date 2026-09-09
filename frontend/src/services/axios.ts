@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { getRealtimeClientId } from './realtimeService';
 
 const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -15,6 +16,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    config.headers['X-Realtime-Client-Id'] = getRealtimeClientId();
   }
 
   return config;
