@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { coachService } from '../../services/coachService';
@@ -75,6 +75,7 @@ function Coach() {
   const [error, setError] = useState('');
   const [chatError, setChatError] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [streamStatus, setStreamStatus] = useState('');
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState([
     {
@@ -83,6 +84,9 @@ function Coach() {
       sources: [],
     },
   ]);
+  const streamControllerRef = useRef(null);
+  const streamCancelledRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const groupedInsights = useMemo(() => {
     const sortedInsights = sortByPriority(insights);
@@ -96,6 +100,8 @@ function Coach() {
   }, [insights]);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     const loadInsights = async () => {
       setLoading(true);
       setError('');
@@ -116,7 +122,38 @@ function Coach() {
     };
 
     loadInsights();
+
+    return () => {
+      mountedRef.current = false;
+      streamControllerRef.current?.abort();
+    };
   }, [logout]);
+
+  const updateCoachMessage = (index, updates) => {
+    if (!mountedRef.current) return;
+
+    setConversation((current) =>
+      current.map((entry, entryIndex) =>
+        entryIndex === index
+          ? {
+              ...entry,
+              ...updates,
+              content:
+                typeof updates.content === 'function'
+                  ? updates.content(entry.content)
+                  : updates.content ?? entry.content,
+            }
+          : entry,
+      ),
+    );
+  };
+
+  const cancelCoachResponse = () => {
+    streamCancelledRef.current = true;
+    streamControllerRef.current?.abort();
+    setChatLoading(false);
+    setStreamStatus('');
+  };
 
   const submitCoachMessage = async (event, suggestedMessage) => {
     event?.preventDefault();
@@ -132,34 +169,105 @@ function Coach() {
 
     setChatError('');
     setChatLoading(true);
+    setStreamStatus('Reviewing your training...');
     setMessage('');
-    setConversation((current) => [...current, { role: 'user', content: outgoingMessage, sources: [] }]);
+    streamCancelledRef.current = false;
+
+    const controller = new AbortController();
+    streamControllerRef.current = controller;
+    const coachMessageIndex = conversation.length + 1;
+
+    setConversation((current) => [
+      ...current,
+      { role: 'user', content: outgoingMessage, sources: [] },
+      {
+        role: 'coach',
+        content: '',
+        sources: [],
+        status: 'Reviewing your training...',
+        streaming: true,
+      },
+    ]);
 
     try {
-      const response = await coachService.sendCoachMessage(outgoingMessage);
-      setConversation((current) => [
-        ...current,
-        {
-          role: 'coach',
-          content: response.data.answer,
-          sources: response.data.sources || [],
+      await coachService.streamCoachMessage({
+        message: outgoingMessage,
+        signal: controller.signal,
+        onEvent: (streamEvent) => {
+          if (!mountedRef.current) return;
+
+          if (streamEvent.type === 'status') {
+            setStreamStatus(streamEvent.message);
+            updateCoachMessage(coachMessageIndex, { status: streamEvent.message });
+            return;
+          }
+
+          if (streamEvent.type === 'text_delta') {
+            setStreamStatus('');
+            updateCoachMessage(coachMessageIndex, {
+              status: '',
+              content: (currentContent) => `${currentContent}${streamEvent.delta}`,
+            });
+            return;
+          }
+
+          if (streamEvent.type === 'complete') {
+            setStreamStatus('');
+            updateCoachMessage(coachMessageIndex, {
+              streaming: false,
+              status: '',
+              sources: streamEvent.sources || [],
+            });
+            return;
+          }
+
+          if (streamEvent.type === 'error') {
+            setStreamStatus('');
+            updateCoachMessage(coachMessageIndex, {
+              streaming: false,
+              status: '',
+              content: (currentContent) => currentContent || 'Coach could not complete that response.',
+            });
+            setChatError(streamEvent.message);
+          }
         },
-      ]);
+      });
     } catch (err) {
-      if (err.response?.status === 401) {
+      if (streamCancelledRef.current || err.name === 'AbortError') {
+        updateCoachMessage(coachMessageIndex, {
+          streaming: false,
+          status: '',
+          content: (currentContent) => currentContent || 'Response cancelled.',
+        });
+        return;
+      }
+
+      if (err.response?.status === 401 || err.status === 401 || err.message === 'Authentication required') {
         await logout();
         return;
       }
 
-      if (err.response?.status === 429) {
+      updateCoachMessage(coachMessageIndex, {
+        streaming: false,
+        status: '',
+        content: (currentContent) => currentContent || 'Coach could not complete that response.',
+      });
+
+      if (err.response?.status === 429 || err.status === 429 || /too many/i.test(err.message)) {
         setChatError(err.response?.data?.message || 'Coach is receiving too many requests. Please try again shortly.');
-      } else if (err.code === 'ECONNABORTED') {
+      } else if (err.response?.status === 504 || err.status === 504 || err.code === 'ECONNABORTED' || /too long|timeout|taking longer/i.test(err.message)) {
         setChatError('Coach took too long to respond. Please try again.');
+      } else if (err instanceof TypeError) {
+        setChatError('Network connection failed. Please check your connection and try again.');
       } else {
-        setChatError(err.response?.data?.message || 'Unable to reach Coach right now. Please try again.');
+        setChatError(err.response?.data?.message || err.message || 'Unable to reach Coach right now. Please try again.');
       }
     } finally {
-      setChatLoading(false);
+      if (mountedRef.current) {
+        setChatLoading(false);
+        setStreamStatus('');
+      }
+      streamControllerRef.current = null;
     }
   };
 
@@ -208,7 +316,9 @@ function Coach() {
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
                 {entry.role === 'user' ? 'You' : 'Coach'}
               </p>
-              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-stone-300">{entry.content}</p>
+              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-stone-300">
+                {entry.content || entry.status || 'Preparing your answer...'}
+              </p>
               {entry.sources?.length > 0 && (
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-stone-600">
                   Sources: {entry.sources.map((source) => source.replace(/_/g, ' ')).join(', ')}
@@ -217,7 +327,7 @@ function Coach() {
             </article>
           ))}
 
-          {chatLoading && <p className="text-sm text-stone-400">Reviewing your training...</p>}
+          {chatLoading && streamStatus && <p className="text-sm text-stone-400">{streamStatus}</p>}
         </div>
 
         {chatError && (
@@ -245,6 +355,11 @@ function Coach() {
           <button type="submit" className="btn-primary sm:w-auto" disabled={chatLoading}>
             {chatLoading ? 'Sending...' : 'Send'}
           </button>
+          {chatLoading && (
+            <button type="button" className="btn-secondary sm:w-auto" onClick={cancelCoachResponse}>
+              Cancel
+            </button>
+          )}
         </form>
       </section>
 

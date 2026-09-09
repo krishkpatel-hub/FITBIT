@@ -51,6 +51,66 @@ const logCoachEvent = (message, payload = {}) => {
   console.info(`Coach: ${message}`, payload);
 };
 
+const buildInitialResponsePayload = ({ model, message, stream = false }) => ({
+  model,
+  instructions: COACH_SYSTEM_PROMPT,
+  input: [
+    {
+      role: 'user',
+      content: message,
+    },
+  ],
+  tools: coachToolDefinitions,
+  ...(stream ? { stream: true, stream_options: { include_obfuscation: false } } : {}),
+});
+
+const buildToolResponsePayload = ({ model, previousResponseId, toolOutputs, stream = false }) => ({
+  model,
+  instructions: COACH_SYSTEM_PROMPT,
+  previous_response_id: previousResponseId,
+  input: toolOutputs,
+  tools: coachToolDefinitions,
+  ...(stream ? { stream: true, stream_options: { include_obfuscation: false } } : {}),
+});
+
+const friendlyStatusForTool = (toolName) => {
+  const statuses = {
+    get_training_maxes: 'Checking your strength numbers...',
+    get_recent_workouts: 'Reviewing your recent workouts...',
+    get_lift_history: 'Checking your strength progression...',
+    get_current_program: 'Reviewing your current program...',
+    get_progress_summary: 'Reviewing your progress summary...',
+  };
+
+  return statuses[toolName] || 'Reviewing your training...';
+};
+
+const consumeOpenAIStream = async (stream, onEvent) => {
+  let completedResponse = null;
+  let streamedText = '';
+
+  for await (const event of stream) {
+    if (event.type === 'response.output_text.delta' && event.delta) {
+      streamedText += event.delta;
+      await onEvent({ type: 'text_delta', delta: event.delta });
+      continue;
+    }
+
+    if (event.type === 'response.completed') {
+      completedResponse = event.response;
+    }
+
+    if (event.type === 'response.failed') {
+      throw createCoachError('The coach could not complete the response.');
+    }
+  }
+
+  return {
+    response: completedResponse,
+    streamedText,
+  };
+};
+
 export const createCoachAgent = ({
   client = null,
   executeTool = executeCoachTool,
@@ -67,17 +127,7 @@ export const createCoachAgent = ({
 
     try {
       response = await openai.responses.create(
-        {
-          model,
-          instructions: COACH_SYSTEM_PROMPT,
-          input: [
-            {
-              role: 'user',
-              content: message,
-            },
-          ],
-          tools: coachToolDefinitions,
-        },
+        buildInitialResponsePayload({ model, message }),
         { timeout: OPENAI_TIMEOUT_MS },
       );
 
@@ -128,13 +178,7 @@ export const createCoachAgent = ({
         }
 
         response = await openai.responses.create(
-          {
-            model,
-            instructions: COACH_SYSTEM_PROMPT,
-            previous_response_id: response.id,
-            input: toolOutputs,
-            tools: coachToolDefinitions,
-          },
+          buildToolResponsePayload({ model, previousResponseId: response.id, toolOutputs }),
           { timeout: OPENAI_TIMEOUT_MS },
         );
       }
@@ -165,3 +209,124 @@ export const createCoachAgent = ({
 };
 
 export const runCoachAgent = async (params) => createCoachAgent()(params);
+
+export const createStreamingCoachAgent = ({
+  client = null,
+  executeTool = executeCoachTool,
+  model = process.env.OPENAI_MODEL || DEFAULT_MODEL,
+} = {}) => {
+  const openai = client || getOpenAIClient();
+
+  return async ({ authenticatedUserId, message, onEvent, signal }) => {
+    const startedAt = Date.now();
+    const sources = new Set();
+    let response;
+
+    logCoachEvent('stream started', { userId: String(authenticatedUserId), model });
+
+    try {
+      await onEvent({ type: 'status', message: 'Reviewing your training...' });
+
+      for (let round = 1; round <= MAX_TOOL_ROUNDS; round += 1) {
+        const shouldStreamFinal = round === MAX_TOOL_ROUNDS || sources.size > 0;
+        const stream = await openai.responses.create(
+          response
+            ? buildToolResponsePayload({
+                model,
+                previousResponseId: response.id,
+                toolOutputs: response.toolOutputs,
+                stream: shouldStreamFinal,
+              })
+            : buildInitialResponsePayload({ model, message, stream: true }),
+          { timeout: OPENAI_TIMEOUT_MS, signal },
+        );
+
+        const streamResult = await consumeOpenAIStream(stream, onEvent);
+        response = streamResult.response;
+
+        if (!response) {
+          throw createCoachError('The coach stream ended before the response completed.');
+        }
+
+        const toolCalls = getFunctionCalls(response);
+
+        if (toolCalls.length === 0) {
+          if (!streamResult.streamedText.trim()) {
+            throw createCoachError('The coach returned an empty response.');
+          }
+
+          await onEvent({ type: 'complete', sources: [...sources] });
+          logCoachEvent('stream completed', {
+            userId: String(authenticatedUserId),
+            rounds: round - 1,
+            durationMs: Date.now() - startedAt,
+          });
+          return {
+            answer: streamResult.streamedText,
+            sources: [...sources],
+          };
+        }
+
+        const toolOutputs = [];
+
+        for (const toolCall of toolCalls) {
+          const toolStartedAt = Date.now();
+          await onEvent({ type: 'status', message: friendlyStatusForTool(toolCall.name) });
+
+          const toolResult = await executeTool({
+            name: toolCall.name,
+            args: toolCall.arguments || '{}',
+            authenticatedUserId,
+          });
+
+          sources.add(toolCall.name);
+          logCoachEvent('stream tool executed', {
+            userId: String(authenticatedUserId),
+            tool: toolCall.name,
+            durationMs: Date.now() - toolStartedAt,
+          });
+
+          toolOutputs.push({
+            type: 'function_call_output',
+            call_id: toolCall.call_id,
+            output: JSON.stringify(toolResult.result),
+          });
+        }
+
+        await onEvent({ type: 'status', message: 'Preparing your answer...' });
+        response = {
+          ...response,
+          toolOutputs,
+        };
+      }
+
+      throw createCoachError('The coach needed too many tool calls to answer safely.', 422);
+    } catch (error) {
+      logCoachEvent('stream failed', {
+        userId: String(authenticatedUserId),
+        durationMs: Date.now() - startedAt,
+        message: error.message,
+      });
+
+      if (error.name === 'AbortError') {
+        throw createCoachError('Coach response was cancelled.', 499);
+      }
+
+      if (error.statusCode) {
+        throw error;
+      }
+
+      if (error.status === 429 || error.code === 'rate_limit_exceeded') {
+        throw createCoachError('The coach is receiving too many requests. Please try again shortly.', 429);
+      }
+
+      if (error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
+        throw createCoachError('The coach took too long to respond. Please try again.', 504);
+      }
+
+      throw createCoachError('The AI coach is unavailable right now. Please try again shortly.');
+    }
+  };
+};
+
+export const streamCoachAgent = async (params) => createStreamingCoachAgent()(params);
