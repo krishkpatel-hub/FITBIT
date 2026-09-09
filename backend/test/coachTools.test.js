@@ -5,55 +5,8 @@ import { createCoachToolExecutor, normalizeLiftName } from '../src/services/coac
 const userA = 'user-a';
 const userB = 'user-b';
 
-const createQuery = (items) => {
-  let rows = Array.isArray(items) ? [...items] : items;
-
-  return {
-    sort(sortSpec = {}) {
-      if (Array.isArray(rows)) {
-        const [[key, direction]] = Object.entries(sortSpec);
-        if (key) {
-          rows = [...rows].sort((a, b) => {
-            const left = new Date(a[key] || a.updatedAt || a.createdAt).getTime() || a[key];
-            const right = new Date(b[key] || b.updatedAt || b.createdAt).getTime() || b[key];
-            return direction < 0 ? right - left : left - right;
-          });
-        }
-      }
-      return this;
-    },
-    limit(limitValue) {
-      if (Array.isArray(rows)) {
-        rows = rows.slice(0, limitValue);
-      }
-      return this;
-    },
-    populate() {
-      return this;
-    },
-    async lean() {
-      return rows;
-    },
-  };
-};
-
-const matchesFilter = (item, filter) =>
-  Object.entries(filter).every(([key, value]) => {
-    if (key === '_id') return String(item._id) === String(value);
-    return item[key] === value;
-  });
-
-const createModel = (items) => ({
-  find(filter) {
-    return createQuery(items.filter((item) => matchesFilter(item, filter)));
-  },
-  findOne(filter) {
-    return createQuery(items.find((item) => matchesFilter(item, filter)) || null);
-  },
-});
-
-const createMockModels = () => ({
-  TrainingMax: createModel([
+const data = {
+  trainingMaxes: [
     {
       user: userA,
       liftName: 'bench',
@@ -71,8 +24,8 @@ const createMockModels = () => ({
       currentWeek: 1,
       history: [],
     },
-  ]),
-  Workout: createModel([
+  ],
+  workouts: [
     {
       user: userA,
       title: 'Week 1 - Bench Press Day',
@@ -97,8 +50,8 @@ const createMockModels = () => ({
       totalVolume: 9999,
       exercises: [{ exerciseName: 'Bench Press', sets: [] }],
     },
-  ]),
-  PRRecord: createModel([
+  ],
+  prs: [
     {
       user: userA,
       exerciseName: 'Bench Press',
@@ -117,8 +70,8 @@ const createMockModels = () => ({
       weight: 365,
       reps: 5,
     },
-  ]),
-  Progress: createModel([
+  ],
+  progressLogs: [
     {
       user: userA,
       date: new Date().toISOString(),
@@ -133,8 +86,8 @@ const createMockModels = () => ({
       bodyFatPercentage: 8,
       measurements: {},
     },
-  ]),
-  ProgramWeek: createModel([
+  ],
+  programs: [
     {
       user: userA,
       week: 1,
@@ -165,7 +118,39 @@ const createMockModels = () => ({
       maxes: { bench: { oneRepMax: 405, trainingMax: 365 } },
       workouts: [{ title: 'Secret User B Program', status: 'completed', exercises: [] }],
     },
-  ]),
+  ],
+};
+
+const byUser = (items, userId) => items.filter((item) => item.user === userId);
+
+const createMockDataServices = () => ({
+  getTrainingMaxes: async (userId) => byUser(data.trainingMaxes, userId),
+  getTrainingMaxByLift: async (userId, liftName) =>
+    byUser(data.trainingMaxes, userId).find((item) => item.liftName === liftName) || null,
+  getRecentCompletedWorkouts: async (userId, limit) =>
+    byUser(data.workouts, userId)
+      .filter((item) => item.status === 'completed')
+      .slice(0, limit),
+  getCompletedLiftWorkouts: async (userId, liftName, limit) =>
+    byUser(data.workouts, userId)
+      .filter((item) => item.status === 'completed' && item.liftName === liftName)
+      .slice(0, limit),
+  getRecentPRRecords: async (userId, limit) => byUser(data.prs, userId).slice(0, limit),
+  getCurrentProgram: async (userId) => byUser(data.programs, userId).find((item) => item.status === 'current') || null,
+  getProgressSummary: async (userId) => {
+    const workouts = byUser(data.workouts, userId);
+    const prs = byUser(data.prs, userId);
+    const progressLogs = byUser(data.progressLogs, userId);
+
+    return {
+      completedWorkouts: workouts.filter((item) => item.status === 'completed').length,
+      plannedWorkouts: workouts.filter((item) => item.status === 'planned').length,
+      totalCompletedVolume: workouts.reduce((sum, item) => sum + Number(item.totalVolume || 0), 0),
+      latestProgress: progressLogs[0] || null,
+      latestPR: prs[0] || null,
+      insights: [],
+    };
+  },
 });
 
 test('normalizeLiftName accepts app lift aliases', () => {
@@ -176,7 +161,7 @@ test('normalizeLiftName accepts app lift aliases', () => {
 });
 
 test('Coach tools reject unauthenticated requests, unknown tools, malformed args, and invalid lift parameters', async () => {
-  const executeTool = createCoachToolExecutor(createMockModels());
+  const executeTool = createCoachToolExecutor(createMockDataServices());
 
   await assert.rejects(
     () => executeTool({ name: 'get_training_maxes', args: {}, authenticatedUserId: '' }),
@@ -210,7 +195,7 @@ test('Coach tools reject unauthenticated requests, unknown tools, malformed args
 });
 
 test('Coach tools only return data for the authenticated user', async () => {
-  const executeTool = createCoachToolExecutor(createMockModels());
+  const executeTool = createCoachToolExecutor(createMockDataServices());
   const toolCalls = [
     { name: 'get_training_maxes', args: {} },
     { name: 'get_recent_workouts', args: { limit: 5 } },
@@ -230,11 +215,20 @@ test('Coach tools only return data for the authenticated user', async () => {
 
 test('Coach tools return empty results safely when history is missing', async () => {
   const executeTool = createCoachToolExecutor({
-    TrainingMax: createModel([]),
-    Workout: createModel([]),
-    PRRecord: createModel([]),
-    Progress: createModel([]),
-    ProgramWeek: createModel([]),
+    getTrainingMaxes: async () => [],
+    getTrainingMaxByLift: async () => null,
+    getRecentCompletedWorkouts: async () => [],
+    getCompletedLiftWorkouts: async () => [],
+    getRecentPRRecords: async () => [],
+    getCurrentProgram: async () => null,
+    getProgressSummary: async () => ({
+      completedWorkouts: 0,
+      plannedWorkouts: 0,
+      totalCompletedVolume: 0,
+      latestProgress: null,
+      latestPR: null,
+      insights: [],
+    }),
   });
 
   const output = await executeTool({

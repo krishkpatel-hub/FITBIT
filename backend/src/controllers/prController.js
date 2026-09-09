@@ -1,26 +1,21 @@
 import asyncHandler from 'express-async-handler';
-import PRRecord from '../models/PRRecord.js';
-import { findUserDocumentById, requireFields, sendSuccess } from '../utils/apiHelpers.js';
-
-const allowedPRFields = ['exerciseName', 'oneRepMax', 'estimatedOneRepMax', 'weight', 'reps', 'date', 'notes'];
-
-const pickPRFields = (body) =>
-  allowedPRFields.reduce((fields, field) => {
-    if (body[field] !== undefined) {
-      fields[field] = body[field];
-    }
-
-    return fields;
-  }, {});
+import {
+  createUserPRRecord,
+  deleteUserPRRecord,
+  getUserPRRecordById,
+  getUserPRRecords,
+  updateUserPRRecord,
+} from '../services/prService.js';
+import { requireFields, sendSuccess } from '../utils/apiHelpers.js';
 
 export const getPRRecords = asyncHandler(async (req, res) => {
-  const prs = await PRRecord.find({ user: req.user.id }).sort({ date: -1, createdAt: -1 });
+  const prs = await getUserPRRecords(req.user.id);
 
   sendSuccess(res, prs);
 });
 
 export const getPRRecordById = asyncHandler(async (req, res) => {
-  const pr = await findUserDocumentById(PRRecord, req.params.id, req.user.id, 'PR record');
+  const pr = await getUserPRRecordById(req.params.id, req.user.id);
 
   sendSuccess(res, pr);
 });
@@ -28,28 +23,19 @@ export const getPRRecordById = asyncHandler(async (req, res) => {
 export const createPRRecord = asyncHandler(async (req, res) => {
   requireFields(req.body, ['exerciseName']);
 
-  const pr = await PRRecord.create({
-    ...pickPRFields(req.body),
-    user: req.user.id,
-  });
+  const pr = await createUserPRRecord(req.user.id, req.body);
 
   sendSuccess(res, pr, 201);
 });
 
 export const updatePRRecord = asyncHandler(async (req, res) => {
-  const pr = await findUserDocumentById(PRRecord, req.params.id, req.user.id, 'PR record');
-
-  pr.set(pickPRFields(req.body));
-  const updatedPR = await pr.save();
+  const updatedPR = await updateUserPRRecord(req.params.id, req.user.id, req.body);
 
   sendSuccess(res, updatedPR);
 });
 
 export const deletePRRecord = asyncHandler(async (req, res) => {
-  const pr = await findUserDocumentById(PRRecord, req.params.id, req.user.id, 'PR record');
+  const result = await deleteUserPRRecord(req.params.id, req.user.id);
 
-  await pr.deleteOne();
-
-  sendSuccess(res, { id: req.params.id, message: 'PR record deleted successfully' });
+  sendSuccess(res, result);
 });
-

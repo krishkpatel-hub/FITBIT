@@ -1,9 +1,7 @@
-import PRRecord from '../models/PRRecord.js';
-import ProgramWeek from '../models/ProgramWeek.js';
-import Progress from '../models/Progress.js';
-import TrainingMax from '../models/TrainingMax.js';
-import Workout from '../models/Workout.js';
-import { generateSmartCoachInsights } from './smartCoachService.js';
+import { getCoachProgressSummary } from './analyticsService.js';
+import { getRecentPRRecords } from './prService.js';
+import { getCurrentProgramWeek, getUserTrainingMaxByLift, getUserTrainingMaxes } from './programService.js';
+import { getCompletedLiftWorkouts, getCompletedWorkouts } from './workoutService.js';
 
 const MAIN_LIFTS = {
   squat: { key: 'squat', label: 'Squat' },
@@ -19,12 +17,14 @@ const DEFAULT_LIMIT = 5;
 const MAX_RECENT_WORKOUTS = 10;
 const MAX_HISTORY_WEEKS = 24;
 
-const defaultModels = {
-  PRRecord,
-  ProgramWeek,
-  Progress,
-  TrainingMax,
-  Workout,
+const defaultDataServices = {
+  getTrainingMaxes: (userId) => getUserTrainingMaxes({ userId }),
+  getTrainingMaxByLift: (userId, liftName) => getUserTrainingMaxByLift({ userId, liftName }),
+  getRecentCompletedWorkouts: (userId, limit) => getCompletedWorkouts({ userId, limit }),
+  getCompletedLiftWorkouts: (userId, liftName, limit) => getCompletedLiftWorkouts({ userId, liftName, limit }),
+  getRecentPRRecords: (userId, limit) => getRecentPRRecords({ userId, limit }),
+  getCurrentProgram: (userId) => getCurrentProgramWeek(userId),
+  getProgressSummary: (userId) => getCoachProgressSummary(userId),
 };
 
 const toPlainArray = async (query) => {
@@ -34,11 +34,6 @@ const toPlainArray = async (query) => {
 
   return query;
 };
-
-const chainSort = (query, sort) => (query && typeof query.sort === 'function' ? query.sort(sort) : query);
-const chainLimit = (query, limit) => (query && typeof query.limit === 'function' ? query.limit(limit) : query);
-const chainPopulate = (query, populate) =>
-  query && typeof query.populate === 'function' ? query.populate(populate) : query;
 
 const isoDate = (value) => {
   if (!value) return null;
@@ -153,31 +148,6 @@ const assertAuthenticatedUser = (authenticatedUserId) => {
   }
 };
 
-const runFindMany = async (Model, filter, sort, limit) => {
-  let query = Model.find(filter);
-  query = chainSort(query, sort);
-
-  if (limit) {
-    query = chainLimit(query, limit);
-  }
-
-  return toPlainArray(query);
-};
-
-const runFindOne = async (Model, filter, sort, populate) => {
-  let query = Model.findOne(filter);
-
-  if (sort) {
-    query = chainSort(query, sort);
-  }
-
-  if (populate) {
-    query = chainPopulate(query, populate);
-  }
-
-  return toPlainArray(query);
-};
-
 const filterWorkoutsByExercise = (workouts, exercise) => {
   const requested = normalizeKey(exercise);
 
@@ -272,7 +242,7 @@ export const coachToolDefinitions = [
   },
 ];
 
-export const createCoachToolExecutor = (models = defaultModels) => async ({ name, args, authenticatedUserId }) => {
+export const createCoachToolExecutor = (dataServices = defaultDataServices) => async ({ name, args, authenticatedUserId }) => {
   assertAuthenticatedUser(authenticatedUserId);
 
   const parsedArgs = parseArgs(args, name);
@@ -282,7 +252,7 @@ export const createCoachToolExecutor = (models = defaultModels) => async ({ name
   switch (name) {
     case 'get_training_maxes': {
       assertNoExtraArgs(parsedArgs, [], name);
-      const trainingMaxes = await runFindMany(models.TrainingMax, { user: authenticatedUserId }, { liftName: 1 });
+      const trainingMaxes = await toPlainArray(dataServices.getTrainingMaxes(authenticatedUserId));
 
       result = {
         trainingMaxes: trainingMaxes.map((item) => ({
@@ -299,11 +269,8 @@ export const createCoachToolExecutor = (models = defaultModels) => async ({ name
     case 'get_recent_workouts': {
       assertNoExtraArgs(parsedArgs, ['limit', 'exercise'], name);
       const limit = validateLimit(parsedArgs.limit || DEFAULT_LIMIT);
-      const workouts = await runFindMany(
-        models.Workout,
-        { user: authenticatedUserId, status: 'completed' },
-        { date: -1, updatedAt: -1 },
-        parsedArgs.exercise ? 50 : limit,
+      const workouts = await toPlainArray(
+        dataServices.getRecentCompletedWorkouts(authenticatedUserId, parsedArgs.exercise ? 50 : limit),
       );
       result = {
         workouts: filterWorkoutsByExercise(workouts, parsedArgs.exercise).slice(0, limit).map(compactWorkout),
@@ -326,14 +293,9 @@ export const createCoachToolExecutor = (models = defaultModels) => async ({ name
       cutoff.setDate(cutoff.getDate() - weeks * 7);
 
       const [trainingMax, workouts, prs] = await Promise.all([
-        runFindOne(models.TrainingMax, { user: authenticatedUserId, liftName: lift.key }),
-        runFindMany(
-          models.Workout,
-          { user: authenticatedUserId, status: 'completed', liftName: lift.key },
-          { date: -1, updatedAt: -1 },
-          80,
-        ),
-        runFindMany(models.PRRecord, { user: authenticatedUserId }, { date: -1, updatedAt: -1 }, 40),
+        toPlainArray(dataServices.getTrainingMaxByLift(authenticatedUserId, lift.key)),
+        toPlainArray(dataServices.getCompletedLiftWorkouts(authenticatedUserId, lift.key, 80)),
+        toPlainArray(dataServices.getRecentPRRecords(authenticatedUserId, 40)),
       ]);
 
       const sessions = workouts
@@ -385,12 +347,7 @@ export const createCoachToolExecutor = (models = defaultModels) => async ({ name
 
     case 'get_current_program': {
       assertNoExtraArgs(parsedArgs, [], name);
-      const programWeek = await runFindOne(
-        models.ProgramWeek,
-        { user: authenticatedUserId, status: 'current' },
-        { weekNumber: 1 },
-        { path: 'workouts', options: { sort: { programDay: 1, date: 1 } } },
-      );
+      const programWeek = await toPlainArray(dataServices.getCurrentProgram(authenticatedUserId));
 
       result = {
         program: programWeek
@@ -411,43 +368,7 @@ export const createCoachToolExecutor = (models = defaultModels) => async ({ name
 
     case 'get_progress_summary': {
       assertNoExtraArgs(parsedArgs, [], name);
-      const [workouts, trainingMaxes, prs, progressLogs] = await Promise.all([
-        runFindMany(models.Workout, { user: authenticatedUserId }, { date: -1, updatedAt: -1 }, 120),
-        runFindMany(models.TrainingMax, { user: authenticatedUserId }, { liftName: 1 }),
-        runFindMany(models.PRRecord, { user: authenticatedUserId }, { date: -1, updatedAt: -1 }, 80),
-        runFindMany(models.Progress, { user: authenticatedUserId }, { date: -1, updatedAt: -1 }, 45),
-      ]);
-
-      const completedWorkouts = workouts.filter((workout) => workout.status === 'completed');
-      const plannedWorkouts = workouts.filter((workout) => workout.status === 'planned');
-      const totalVolume = completedWorkouts.reduce((sum, workout) => sum + Number(workout.totalVolume || 0), 0);
-      const latestProgress = progressLogs[0] || null;
-      const latestPR = prs[0] || null;
-
-      result = {
-        completedWorkouts: completedWorkouts.length,
-        plannedWorkouts: plannedWorkouts.length,
-        totalCompletedVolume: totalVolume,
-        latestProgress: latestProgress
-          ? {
-              date: isoDate(latestProgress.date),
-              bodyWeight: Number(latestProgress.bodyWeight || 0),
-              bodyFatPercentage: Number(latestProgress.bodyFatPercentage || 0),
-              measurements: latestProgress.measurements || {},
-            }
-          : null,
-        latestPR: latestPR
-          ? {
-              exerciseName: latestPR.exerciseName,
-              date: isoDate(latestPR.date),
-              oneRepMax: Number(latestPR.oneRepMax || 0),
-              estimatedOneRepMax: Number(latestPR.estimatedOneRepMax || 0),
-              weight: Number(latestPR.weight || 0),
-              reps: Number(latestPR.reps || 0),
-            }
-          : null,
-        insights: generateSmartCoachInsights({ workouts, trainingMaxes, prs, progressLogs }).slice(0, 5),
-      };
+      result = await dataServices.getProgressSummary(authenticatedUserId);
       break;
     }
 

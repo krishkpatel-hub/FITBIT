@@ -90,6 +90,7 @@ test('Coach agent exposes lift history, current program, and recent workout tool
     ['How has my bench changed recently?', 'get_lift_history', { lift: 'bench', weeks: 4 }],
     ['What should I train next?', 'get_current_program', {}],
     ['Summarize my recent training.', 'get_recent_workouts', { limit: 5 }],
+    ['How am I progressing overall?', 'get_progress_summary', {}],
   ];
 
   for (const [message, toolName, args] of scenarios) {
