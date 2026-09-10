@@ -14,7 +14,7 @@
     "build:backend": "npm --prefix backend run build"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
