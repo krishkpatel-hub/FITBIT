@@ -3,6 +3,7 @@ import type { ApiSuccess, CoachChatResponse, CoachInsight } from '../types/domai
 
 const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const apiBaseUrl = `${rawBaseUrl.replace(/\/$/, '')}/api`;
+const COACH_STREAM_TIMEOUT_MS = 75000;
 
 class CoachStreamError extends Error {
   status?: number;
@@ -60,15 +61,41 @@ export const coachService = {
     onEvent: (event: CoachStreamEvent) => void;
   }): Promise<void> => {
     const token = localStorage.getItem('fitbitStrengthToken');
-    const response = await fetch(`${apiBaseUrl}/coach/chat/stream`, {
-      method: 'POST',
-      signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ message }),
-    });
+    const requestController = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      requestController.abort();
+    }, COACH_STREAM_TIMEOUT_MS);
+    const abortRequest = () => requestController.abort();
+
+    if (signal.aborted) {
+      window.clearTimeout(timeoutId);
+      throw new DOMException('The operation was aborted.', 'AbortError');
+    }
+
+    signal.addEventListener('abort', abortRequest, { once: true });
+
+    let response: Response;
+
+    try {
+      response = await fetch(`${apiBaseUrl}/coach/chat/stream`, {
+        method: 'POST',
+        signal: requestController.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message }),
+      });
+    } catch (error) {
+      if (requestController.signal.aborted && !signal.aborted) {
+        throw new CoachStreamError('The coach took too long to respond. Please try again.', 504);
+      }
+
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+      signal.removeEventListener('abort', abortRequest);
+    }
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -94,10 +121,26 @@ export const coachService = {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    const streamTimeoutId = window.setTimeout(() => {
+      requestController.abort();
+    }, COACH_STREAM_TIMEOUT_MS);
+    signal.addEventListener('abort', abortRequest, { once: true });
 
     try {
       while (true) {
-        const { value, done } = await reader.read();
+        let readResult: ReadableStreamReadResult<Uint8Array>;
+
+        try {
+          readResult = await reader.read();
+        } catch (error) {
+          if (requestController.signal.aborted && !signal.aborted) {
+            throw new CoachStreamError('The coach took too long to respond. Please try again.', 504);
+          }
+
+          throw error;
+        }
+
+        const { value, done } = readResult;
 
         if (done) break;
 
@@ -110,6 +153,8 @@ export const coachService = {
         onEvent({ type: 'error', message: 'Coach stream ended with an incomplete event.' });
       }
     } finally {
+      window.clearTimeout(streamTimeoutId);
+      signal.removeEventListener('abort', abortRequest);
       reader.releaseLock();
     }
   },

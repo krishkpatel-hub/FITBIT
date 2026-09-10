@@ -203,6 +203,33 @@ test('Coach agent returns a controlled error when OpenAI fails', async () => {
   );
 });
 
+test('Coach agent returns a controlled error when OpenAI configuration is missing', () => {
+  const previousApiKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  try {
+    assert.throws(
+      () => createCoachAgent(),
+      (error) =>
+        error.statusCode === 503 &&
+        error.expose === true &&
+        /couldn't generate a coaching response/i.test(error.message),
+    );
+
+    assert.throws(
+      () => createStreamingCoachAgent(),
+      (error) =>
+        error.statusCode === 503 &&
+        error.expose === true &&
+        /couldn't generate a coaching response/i.test(error.message),
+    );
+  } finally {
+    if (previousApiKey) {
+      process.env.OPENAI_API_KEY = previousApiKey;
+    }
+  }
+});
+
 test('Streaming Coach agent answers general questions without personal-data tools', async () => {
   const client = createFakeClientWithOptions([
     completedStream({
@@ -395,6 +422,6 @@ test('Streaming Coach agent handles cancellation, OpenAI failures, and tool fail
         message: 'What is my bench training max?',
         onEvent: async () => {},
       }),
-    /tool unavailable/i,
+    /couldn't generate a coaching response/i,
   );
 });

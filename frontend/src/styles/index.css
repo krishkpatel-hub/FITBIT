@@ -460,10 +460,41 @@ body.app-light-shell .shadow-\[0_24px_70px_rgba\(0\,0\,0\,0\.26\)\] {
 }
 
 .landing-editorial {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 73% 5%, rgba(212, 175, 55, 0.28), transparent 15rem),
+    radial-gradient(circle at 5% 18%, rgba(47, 79, 70, 0.08), transparent 18rem),
+    linear-gradient(180deg, #f4f0e7 0%, #eeece5 45%, #f7f3ea 100%);
+}
+
+.landing-editorial::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  opacity: 0.42;
   background-image:
-    linear-gradient(rgba(21, 23, 20, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(21, 23, 20, 0.035) 1px, transparent 1px);
-  background-size: 64px 64px;
+    url("data:image/svg+xml,%3Csvg width='1100' height='680' viewBox='0 0 1100 680' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23151714' stroke-opacity='.10'%3E%3Cpath d='M-40 240C160 120 320 120 500 235S845 345 1140 174'/%3E%3Cpath d='M-60 310C176 168 342 170 524 288S855 405 1130 248'/%3E%3Cpath d='M-80 388C190 236 355 236 540 354S862 458 1120 328'/%3E%3Cpath d='M660 -20C548 86 520 204 584 332s58 236-60 360'/%3E%3Cpath d='M770 -14C656 96 632 204 690 326s58 230-44 352'/%3E%3Cpath d='M880 -14C760 100 740 214 796 326s64 216-22 342'/%3E%3C/g%3E%3C/svg%3E");
+  background-position: top center;
+  background-repeat: no-repeat;
+  background-size: min(1100px, 100vw) auto;
+}
+
+.landing-editorial::after {
+  position: absolute;
+  inset: auto -12rem -14rem auto;
+  width: 34rem;
+  height: 34rem;
+  pointer-events: none;
+  content: "";
+  border: 1px solid rgba(21, 23, 20, 0.08);
+  border-radius: 999px;
+}
+
+.landing-editorial > * {
+  position: relative;
+  z-index: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {

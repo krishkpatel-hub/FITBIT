@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /strength-program
+Disallow: /templates
+Disallow: /progress
+Disallow: /calendar
+Disallow: /prs
+Disallow: /analytics
+Disallow: /coach
+Disallow: /profile
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://getjackedcoach.com/sitemap.xml

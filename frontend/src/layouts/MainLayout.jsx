@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar/Navbar.jsx';
 import Footer from '../components/Footer/Footer.jsx';
 import CustomCursor from '../components/CustomCursor/CustomCursor.jsx';
 import SmoothScroll from '../components/SmoothScroll/SmoothScroll.jsx';
+import SEO from '../components/SEO/SEO.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 function MainLayout() {
@@ -22,6 +23,7 @@ function MainLayout() {
 
   return (
     <div className="relative flex min-h-screen flex-col bg-[#EEECE5] text-[#151714]">
+      <SEO />
       <SmoothScroll />
       <CustomCursor />
       <Navbar />

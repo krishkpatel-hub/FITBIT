@@ -8,11 +8,16 @@ const OPENAI_TIMEOUT_MS = 60000;
 
 let openAIClient;
 
+const createCoachError = (message, statusCode = 502) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.expose = true;
+  return error;
+};
+
 const getOpenAIClient = () => {
   if (!process.env.OPENAI_API_KEY) {
-    const error = new Error('OpenAI API key is not configured');
-    error.statusCode = 503;
-    throw error;
+    throw createCoachError("I couldn't generate a coaching response right now. Please try again.", 503);
   }
 
   if (!openAIClient) {
@@ -22,11 +27,24 @@ const getOpenAIClient = () => {
   return openAIClient;
 };
 
-const createCoachError = (message, statusCode = 502) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  error.expose = true;
-  return error;
+const normalizeCoachFailure = (error) => {
+  if (error.statusCode) {
+    if (error.expose) {
+      return error;
+    }
+
+    return createCoachError("I couldn't generate a coaching response right now. Please try again.", error.statusCode >= 500 ? 502 : 422);
+  }
+
+  if (error.status === 429 || error.code === 'rate_limit_exceeded') {
+    return createCoachError('The coach is receiving too many requests. Please try again shortly.', 429);
+  }
+
+  if (error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
+    return createCoachError('The coach took too long to respond. Please try again.', 504);
+  }
+
+  return createCoachError('The AI coach is unavailable right now. Please try again shortly.');
 };
 
 const getFunctionCalls = (response) =>
@@ -191,19 +209,7 @@ export const createCoachAgent = ({
         message: error.message,
       });
 
-      if (error.statusCode) {
-        throw error;
-      }
-
-      if (error.status === 429 || error.code === 'rate_limit_exceeded') {
-        throw createCoachError('The coach is receiving too many requests. Please try again shortly.', 429);
-      }
-
-      if (error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
-        throw createCoachError('The coach took too long to respond. Please try again.', 504);
-      }
-
-      throw createCoachError('The AI coach is unavailable right now. Please try again shortly.');
+      throw normalizeCoachFailure(error);
     }
   };
 };
@@ -312,19 +318,7 @@ export const createStreamingCoachAgent = ({
         throw createCoachError('Coach response was cancelled.', 499);
       }
 
-      if (error.statusCode) {
-        throw error;
-      }
-
-      if (error.status === 429 || error.code === 'rate_limit_exceeded') {
-        throw createCoachError('The coach is receiving too many requests. Please try again shortly.', 429);
-      }
-
-      if (error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
-        throw createCoachError('The coach took too long to respond. Please try again.', 504);
-      }
-
-      throw createCoachError('The AI coach is unavailable right now. Please try again shortly.');
+      throw normalizeCoachFailure(error);
     }
   };
 };

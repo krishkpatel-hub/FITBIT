@@ -27,6 +27,16 @@ const suggestedQuestions = [
   'What is a plus set?',
 ];
 
+const getSafeCoachErrorMessage = (err, fallback = "I couldn't generate that coaching response right now. Please try again.") => {
+  const rawMessage = err?.response?.data?.message || err?.message || '';
+
+  if (!rawMessage || /internal server error|stack trace|cast to|mongoose|mongodb|openai api key/i.test(rawMessage)) {
+    return fallback;
+  }
+
+  return rawMessage;
+};
+
 function InsightRow({ insight }) {
   return (
     <article className="border-t border-stone-800 py-4 first:border-t-0 first:pt-0 last:pb-0">
@@ -226,9 +236,10 @@ function Coach() {
             updateCoachMessage(coachMessageIndex, {
               streaming: false,
               status: '',
-              content: (currentContent) => currentContent || 'Coach could not complete that response.',
+              content: (currentContent) =>
+                currentContent || "I couldn't generate that coaching response right now. Please try again.",
             });
-            setChatError(streamEvent.message);
+            setChatError(getSafeCoachErrorMessage({ message: streamEvent.message }));
           }
         },
       });
@@ -250,17 +261,18 @@ function Coach() {
       updateCoachMessage(coachMessageIndex, {
         streaming: false,
         status: '',
-        content: (currentContent) => currentContent || 'Coach could not complete that response.',
+        content: (currentContent) =>
+          currentContent || "I couldn't generate that coaching response right now. Please try again.",
       });
 
       if (err.response?.status === 429 || err.status === 429 || /too many/i.test(err.message)) {
-        setChatError(err.response?.data?.message || 'Coach is receiving too many requests. Please try again shortly.');
+        setChatError(getSafeCoachErrorMessage(err, 'Coach is receiving too many requests. Please try again shortly.'));
       } else if (err.response?.status === 504 || err.status === 504 || err.code === 'ECONNABORTED' || /too long|timeout|taking longer/i.test(err.message)) {
         setChatError('Coach took too long to respond. Please try again.');
       } else if (err instanceof TypeError) {
         setChatError('Network connection failed. Please check your connection and try again.');
       } else {
-        setChatError(err.response?.data?.message || err.message || 'Unable to reach Coach right now. Please try again.');
+        setChatError(getSafeCoachErrorMessage(err, 'Unable to reach Coach right now. Please try again.'));
       }
     } finally {
       if (mountedRef.current) {
