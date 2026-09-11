@@ -3,10 +3,9 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import Logo from '../Logo.jsx';
 
 const scrollLinks = [
+  { label: 'Features', href: '#features' },
+  { label: 'Product Preview', href: '#product' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Strength Program', href: '#strength-program' },
-  { label: 'Progress Tracking', href: '#progress' },
-  { label: 'AI Coach', href: '#ai-coach' },
 ];
 
 function Footer() {
