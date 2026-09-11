@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCoachToolExecutor, normalizeLiftName } from '../src/services/coachTools.js';
+import { coachToolDefinitions, createCoachToolExecutor, normalizeLiftName } from '../src/services/coachTools.js';
 
 const userA = 'user-a';
 const userB = 'user-b';
@@ -158,6 +158,34 @@ test('normalizeLiftName accepts app lift aliases', () => {
   assert.equal(normalizeLiftName('OHP').key, 'overhead_press');
   assert.equal(normalizeLiftName('Back Squat').key, 'squat');
   assert.equal(normalizeLiftName('curl'), null);
+});
+
+test('Coach strict tool schemas make nullable optional arguments explicit', () => {
+  const recentWorkoutsTool = coachToolDefinitions.find((tool) => tool.name === 'get_recent_workouts');
+  const liftHistoryTool = coachToolDefinitions.find((tool) => tool.name === 'get_lift_history');
+
+  assert.deepEqual(recentWorkoutsTool.parameters.required, ['limit', 'exercise']);
+  assert.deepEqual(recentWorkoutsTool.parameters.properties.limit.type, ['integer', 'null']);
+  assert.deepEqual(recentWorkoutsTool.parameters.properties.exercise.type, ['string', 'null']);
+  assert.deepEqual(liftHistoryTool.parameters.properties.weeks.type, ['integer', 'null']);
+});
+
+test('Coach tools default nullable optional arguments safely', async () => {
+  const executeTool = createCoachToolExecutor(createMockDataServices());
+
+  const recent = await executeTool({
+    name: 'get_recent_workouts',
+    args: { limit: null, exercise: null },
+    authenticatedUserId: userA,
+  });
+  const history = await executeTool({
+    name: 'get_lift_history',
+    args: { lift: 'bench', weeks: null },
+    authenticatedUserId: userA,
+  });
+
+  assert.equal(recent.result.workouts.length, 1);
+  assert.equal(history.result.weeks, 8);
 });
 
 test('Coach tools reject unauthenticated requests, unknown tools, malformed args, and invalid lift parameters', async () => {

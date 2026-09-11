@@ -117,6 +117,10 @@ const parseArgs = (rawArgs, toolName) => {
 };
 
 const validateLimit = (value = DEFAULT_LIMIT) => {
+  if (value === null || value === undefined) {
+    return DEFAULT_LIMIT;
+  }
+
   const limit = Number(value);
 
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_RECENT_WORKOUTS) {
@@ -129,6 +133,10 @@ const validateLimit = (value = DEFAULT_LIMIT) => {
 };
 
 const validateWeeks = (value) => {
+  if (value === null || value === undefined) {
+    return 8;
+  }
+
   const weeks = Number(value);
 
   if (!Number.isInteger(weeks) || weeks < 1 || weeks > MAX_HISTORY_WEEKS) {
@@ -180,17 +188,17 @@ export const coachToolDefinitions = [
       type: 'object',
       properties: {
         limit: {
-          type: 'integer',
+          type: ['integer', 'null'],
           minimum: 1,
           maximum: MAX_RECENT_WORKOUTS,
         },
         exercise: {
-          type: 'string',
+          type: ['string', 'null'],
           minLength: 1,
           maxLength: 60,
         },
       },
-      required: [],
+      required: ['limit', 'exercise'],
       additionalProperties: false,
     },
   },
@@ -207,7 +215,7 @@ export const coachToolDefinitions = [
           enum: ['squat', 'bench', 'bench_press', 'deadlift', 'overhead_press', 'ohp'],
         },
         weeks: {
-          type: 'integer',
+          type: ['integer', 'null'],
           minimum: 1,
           maximum: MAX_HISTORY_WEEKS,
         },

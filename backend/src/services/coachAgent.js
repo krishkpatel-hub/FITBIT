@@ -79,7 +79,7 @@ const buildInitialResponsePayload = ({ model, message, stream = false }) => ({
     },
   ],
   tools: coachToolDefinitions,
-  ...(stream ? { stream: true, stream_options: { include_obfuscation: false } } : {}),
+  ...(stream ? { stream: true } : {}),
 });
 
 const buildToolResponsePayload = ({ model, previousResponseId, toolOutputs, stream = false }) => ({
@@ -88,7 +88,7 @@ const buildToolResponsePayload = ({ model, previousResponseId, toolOutputs, stre
   previous_response_id: previousResponseId,
   input: toolOutputs,
   tools: coachToolDefinitions,
-  ...(stream ? { stream: true, stream_options: { include_obfuscation: false } } : {}),
+  ...(stream ? { stream: true } : {}),
 });
 
 const friendlyStatusForTool = (toolName) => {
@@ -106,6 +106,7 @@ const friendlyStatusForTool = (toolName) => {
 const consumeOpenAIStream = async (stream, onEvent) => {
   let completedResponse = null;
   let streamedText = '';
+  const outputItems = [];
 
   for await (const event of stream) {
     if (event.type === 'response.output_text.delta' && event.delta) {
@@ -118,13 +119,22 @@ const consumeOpenAIStream = async (stream, onEvent) => {
       completedResponse = event.response;
     }
 
+    if (event.type === 'response.output_item.done' && event.item) {
+      outputItems.push(event.item);
+    }
+
     if (event.type === 'response.failed') {
       throw createCoachError('The coach could not complete the response.');
     }
   }
 
   return {
-    response: completedResponse,
+    response: completedResponse
+      ? {
+          ...completedResponse,
+          output: completedResponse.output?.length ? completedResponse.output : outputItems,
+        }
+      : null,
     streamedText,
   };
 };

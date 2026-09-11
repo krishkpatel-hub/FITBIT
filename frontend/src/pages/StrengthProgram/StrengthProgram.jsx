@@ -90,6 +90,8 @@ function StrengthProgram() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingMaxes, setEditingMaxes] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const trainingMaxByLift = useMemo(
     () =>
@@ -163,6 +165,17 @@ function StrengthProgram() {
   const selectedLiftHistory = selectedTrainingMax?.history || [];
   const latestSelectedHistory = selectedLiftHistory[selectedLiftHistory.length - 1];
 
+  const syncOneRepMaxesForWeek = (loadedTrainingMaxes = trainingMaxes, week = Number(programWeek)) => {
+    const maxesReadyForSelectedWeek = loadedTrainingMaxes.length === lifts.length &&
+      loadedTrainingMaxes.every((trainingMax) => Number(trainingMax.currentWeek || 1) === Number(week));
+
+    return lifts.reduce((values, lift) => {
+      const existing = loadedTrainingMaxes.find((trainingMax) => trainingMax.liftName === lift.key);
+      values[lift.key] = maxesReadyForSelectedWeek || Number(week) === 1 ? existing?.oneRepMax ?? '' : '';
+      return values;
+    }, {});
+  };
+
   const handleApiError = async (err, fallbackMessage) => {
     if (err.response?.status === 401) {
       await logout();
@@ -196,13 +209,8 @@ function StrengthProgram() {
       setProgramWeeks(loadedProgramWeeks);
       setGeneratedWorkouts(selectedWeekEntry?.workouts || []);
       setActiveWorkoutIndex(0);
-      setOneRepMaxes(
-        lifts.reduce((values, lift) => {
-          const existing = loadedTrainingMaxes.find((trainingMax) => trainingMax.liftName === lift.key);
-          values[lift.key] = maxesReadyForSelectedWeek || nextSelectedWeek === 1 ? existing?.oneRepMax ?? '' : '';
-          return values;
-        }, {}),
-      );
+      setOneRepMaxes(syncOneRepMaxesForWeek(loadedTrainingMaxes, nextSelectedWeek));
+      setEditingMaxes(!maxesReadyForSelectedWeek && nextSelectedWeek === activeWeek);
       setProgressionForm((current) => ({
         ...current,
         trainingMaxId: current.trainingMaxId || loadedTrainingMaxes[0]?._id || '',
@@ -238,13 +246,8 @@ function StrengthProgram() {
     const maxesReadyForSelectedWeek = trainingMaxes.length === lifts.length &&
       trainingMaxes.every((trainingMax) => Number(trainingMax.currentWeek || 1) === Number(programWeek));
 
-    setOneRepMaxes(
-      lifts.reduce((values, lift) => {
-        const existing = trainingMaxes.find((trainingMax) => trainingMax.liftName === lift.key);
-        values[lift.key] = maxesReadyForSelectedWeek || Number(programWeek) === 1 ? existing?.oneRepMax ?? '' : '';
-        return values;
-      }, {}),
-    );
+    setOneRepMaxes(syncOneRepMaxesForWeek(trainingMaxes, Number(programWeek)));
+    setEditingMaxes(!maxesReadyForSelectedWeek && Number(programWeek) === activeProgramWeekNumber);
   }, [programWeek, trainingMaxes]);
 
   useEffect(() => {
@@ -306,6 +309,7 @@ function StrengthProgram() {
       );
 
       setSuccess(`Week ${programWeek} maxes saved. Generate Week ${programWeek} when ready.`);
+      setEditingMaxes(false);
       await loadTrainingMaxes();
     } catch (err) {
       setError(await handleApiError(err, 'Unable to save training maxes.'));
@@ -439,6 +443,12 @@ function StrengthProgram() {
     }));
   };
 
+  const cancelMaxEditing = () => {
+    setError('');
+    setOneRepMaxes(syncOneRepMaxesForWeek(trainingMaxes, Number(programWeek)));
+    setEditingMaxes(false);
+  };
+
   const updateProgression = async (event) => {
     event.preventDefault();
     setError('');
@@ -541,63 +551,120 @@ function StrengthProgram() {
         </div>
       ) : (
         <>
-          <section aria-labelledby="training-max-heading">
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
+          <section className="space-y-5" aria-labelledby="training-max-heading">
+            <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h2 id="training-max-heading" className="section-title">
-                  Current Training Maxes
+                  Training Maxes
                 </h2>
-                <p className="section-copy">Compact view of the numbers driving this block.</p>
+                <p className="section-copy">View and update the four numbers driving Week {programWeek}.</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {!editingMaxes && selectedWeekCanGenerate && (
+                  <button type="button" className="btn-secondary" onClick={() => setEditingMaxes(true)}>
+                    Edit Maxes
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={generateProgram}
+                  disabled={saving || trainingMaxes.length === 0 || !selectedWeekCanGenerate}
+                  className="btn-primary"
+                >
+                  {saving ? 'Generating...' : selectedWeekGenerated ? `Regenerate Week ${programWeek}` : `Generate Week ${programWeek}`}
+                </button>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {lifts.map((lift) => {
-                const trainingMax = trainingMaxByLift[lift.key];
-                const history = trainingMax?.history || [];
-                const latestHistory = history[history.length - 1];
-                const progressAmount = latestHistory?.increaseAmount ?? 0;
+            {selectedWeekLocked && (
+              <p className="empty-state">Complete Week {activeProgramWeekNumber} to unlock Week {programWeek}.</p>
+            )}
 
-                return (
-                  <motion.article
-                    key={lift.key}
-                    className="border-t border-stone-800 pt-4"
-                    whileHover={{ y: -2 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                  >
-                    <div className="flex items-baseline justify-between gap-4">
-                      <h3 className="text-base font-semibold text-stone-50">{lift.label}</h3>
-                      <span className="text-xs text-stone-500">W{trainingMax?.currentWeek || 1}</span>
+            {selectedWeekCanGenerate && !selectedWeekGenerated && Number(programWeek) > 1 && !selectedWeekMaxesReady && (
+              <p className="empty-state">Enter fresh maxes to generate Week {programWeek}.</p>
+            )}
+
+            <form onSubmit={saveOneRepMaxes} className="border-y border-stone-800">
+              <div className="grid gap-x-8 sm:grid-cols-2 xl:grid-cols-4">
+                {lifts.map((lift) => {
+                  const trainingMax = trainingMaxByLift[lift.key];
+                  const history = trainingMax?.history || [];
+                  const latestHistory = history[history.length - 1];
+                  const progressAmount = latestHistory?.increaseAmount ?? 0;
+                  const oneRepMax = oneRepMaxes[lift.key];
+                  const previewTrainingMax = calculateTrainingMax(oneRepMax);
+
+                  return (
+                    <div key={lift.key} className="border-t border-stone-800 py-5 first:border-t-0 sm:[&:nth-child(2)]:border-t-0 xl:border-t-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-stone-400">{lift.label}</h3>
+                        {!editingMaxes && selectedWeekCanGenerate && (
+                          <button
+                            type="button"
+                            className="text-sm font-semibold text-amber-300/90 hover:text-amber-200"
+                            onClick={() => setEditingMaxes(true)}
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
+
+                      {editingMaxes && selectedWeekCanGenerate ? (
+                        <label className="mt-4 block">
+                          <span className="text-sm font-medium text-stone-300">1RM</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={oneRepMax}
+                            onChange={(event) => handleOneRepMaxChange(lift.key, event.target.value)}
+                            className="form-field"
+                          />
+                          <span className="mt-2 block text-xs text-stone-500">Training preview: {previewTrainingMax} lb</span>
+                        </label>
+                      ) : (
+                        <dl className="mt-4 space-y-3 text-sm">
+                          <div className="flex items-baseline justify-between gap-4">
+                            <dt className="text-stone-500">1RM</dt>
+                            <dd className="font-semibold text-stone-100">{trainingMax?.oneRepMax || 0} lb</dd>
+                          </div>
+                          <div className="flex items-baseline justify-between gap-4">
+                            <dt className="text-stone-500">Training</dt>
+                            <dd className="font-semibold text-stone-100">{trainingMax?.trainingMax || 0} lb</dd>
+                          </div>
+                          <div className="flex items-baseline justify-between gap-4">
+                            <dt className="text-stone-500">Progress</dt>
+                            <dd className="font-semibold text-stone-100">
+                              {progressAmount > 0 ? '+' : ''}
+                              {progressAmount} lb
+                            </dd>
+                          </div>
+                        </dl>
+                      )}
                     </div>
-                    <p className="mt-4 text-3xl font-semibold tracking-tight text-stone-50">
-                      {trainingMax?.trainingMax || 0}
-                      <span className="ml-1 text-sm font-normal text-stone-500">lb TM</span>
-                    </p>
-                    <dl className="mt-4 space-y-2 text-sm">
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-stone-500">1RM</dt>
-                        <dd className="text-stone-200">{trainingMax?.oneRepMax || 0} lb</dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-stone-500">Progress</dt>
-                        <dd className="text-stone-200">
-                          {progressAmount > 0 ? '+' : ''}
-                          {progressAmount} lb
-                        </dd>
-                      </div>
-                    </dl>
-                  </motion.article>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+
+              {editingMaxes && selectedWeekCanGenerate && (
+                <div className="flex flex-wrap items-center gap-3 border-t border-stone-800 py-5">
+                  <button type="submit" disabled={saving} className="btn-primary">
+                    {saving ? 'Saving...' : 'Save Training Maxes'}
+                  </button>
+                  <button type="button" disabled={saving} className="btn-secondary" onClick={cancelMaxEditing}>
+                    Cancel
+                  </button>
+                  <p className="text-sm text-stone-500">Training max is calculated at 90% of 1RM.</p>
+                </div>
+              )}
+            </form>
           </section>
 
-          <section className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]" aria-labelledby="program-overview-heading">
-            <div className="min-w-0">
+          <section className="space-y-6" aria-labelledby="program-overview-heading">
+            <div className="min-w-0 border-b border-stone-800 pb-5">
               <h2 id="program-overview-heading" className="section-title">
-                Program Overview
+                Select Week
               </h2>
-              <p className="section-copy">Choose the week to generate, then use today’s session as the working plan.</p>
+              <p className="section-copy">Future weeks unlock only after the current week is completed.</p>
               {selectedWeekComplete && Number(programWeek) < 4 && (
                 <p className="status-success mt-4">
                   Week complete. Enter updated maxes to generate Week {Number(programWeek) + 1}.
@@ -610,7 +677,7 @@ function StrengthProgram() {
                 <p className="empty-state mt-4">Enter fresh maxes to generate Week {programWeek}.</p>
               )}
 
-              <div className="mt-6 flex gap-3 overflow-x-auto pb-2 lg:block lg:space-y-3 lg:overflow-visible lg:pb-0">
+              <div className="mt-5 flex gap-3 overflow-x-auto pb-2">
                 {programWeekOptions.map((week) => (
                   <button
                     key={week.week}
@@ -622,7 +689,8 @@ function StrengthProgram() {
                     }}
                     disabled={week.locked}
                     aria-disabled={week.locked}
-                    className={`min-w-[196px] rounded-lg border border-l-4 px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300/40 lg:w-full lg:min-w-0 lg:rounded-none lg:border-y-0 lg:border-r-0 ${
+                    title={week.locked ? week.detail : ''}
+                    className={`min-w-[190px] rounded-md border px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300/40 ${
                       week.locked
                         ? 'cursor-not-allowed border-stone-900 text-stone-700'
                         : week.status === 'Current'
@@ -630,26 +698,12 @@ function StrengthProgram() {
                         : 'border-stone-800 text-stone-400 hover:border-stone-600 hover:bg-stone-900/30'
                     }`}
                   >
-                    <span className="block font-medium leading-6">{week.label}</span>
-                    {week.suffix && <span className="mt-1 block text-xs uppercase tracking-[0.16em] text-stone-500">{week.suffix}</span>}
-                    <span className="mt-2 block text-xs font-semibold uppercase leading-5 tracking-[0.14em]">{week.status}</span>
-                    {week.detail && <span className="mt-1 block whitespace-normal text-xs leading-5 text-stone-500">{week.detail}</span>}
+                    <span className="block font-semibold leading-6">{week.label}</span>
+                    <span className="mt-1 block text-xs font-semibold uppercase leading-5 tracking-[0.14em]">
+                      {week.status}{week.suffix ? ` · ${week.suffix}` : ''}
+                    </span>
                   </button>
                 ))}
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={generateProgram}
-                  disabled={saving || trainingMaxes.length === 0 || !selectedWeekCanGenerate}
-                  className="btn-primary"
-                >
-                  {saving ? 'Generating...' : selectedWeekGenerated ? `Regenerate Week ${programWeek}` : `Generate Week ${programWeek}`}
-                </button>
-                <Link to="/calendar" className="btn-secondary">
-                  Training Calendar
-                </Link>
               </div>
             </div>
 
@@ -657,28 +711,30 @@ function StrengthProgram() {
               {!todaysWorkout ? (
                 <p className="empty-state mt-6">Generate your weekly program to load today’s training plan.</p>
               ) : (
-                <div className="grid gap-6 xl:grid-cols-[210px_minmax(0,1fr)]">
+                <div className="grid gap-6 xl:grid-cols-[26%_minmax(0,1fr)]">
                   <div className="min-w-0">
                     <p className="eyebrow">Training Days</p>
                     <nav className="mt-3 flex gap-2 overflow-x-auto pb-2 xl:block xl:space-y-2 xl:overflow-visible xl:pb-0" aria-label="Generated training days">
                       {activeWeekWorkouts.map((workout, index) => {
                         const isActive = index === activeWorkoutIndex;
+                        const dayStatus = workout.status === 'completed' ? 'Completed' : isActive ? 'Current' : 'Planned';
 
                         return (
                           <button
                             key={workout._id || `${workout.title}-${index}`}
                             type="button"
                             onClick={() => setActiveWorkoutIndex(index)}
-                            className={`min-w-[160px] border-l px-3 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300/40 xl:w-full xl:min-w-0 ${
+                            className={`min-w-[170px] border-l-2 px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-amber-300/40 xl:w-full xl:min-w-0 ${
                               isActive
-                                ? 'border-stone-100 bg-stone-900/50 text-stone-50'
+                                ? 'border-amber-300 bg-stone-900/50 text-stone-50'
                                 : 'border-stone-800 text-stone-400 hover:border-stone-600 hover:bg-stone-900/30'
                             }`}
                           >
                             <span className="block text-sm font-semibold">Day {workout.programDay || index + 1}</span>
-                            <span className="mt-1 block text-xs uppercase leading-5 tracking-[0.14em]">
+                            <span className="mt-1 block text-sm font-semibold leading-5">
                               {getWorkoutDayLabel(workout, index)}
                             </span>
+                            <span className="mt-2 block text-xs uppercase tracking-[0.14em] text-stone-500">{dayStatus}</span>
                           </button>
                         );
                       })}
@@ -688,10 +744,11 @@ function StrengthProgram() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div>
-                        <p className="eyebrow">Today’s Workout</p>
+                        <p className="eyebrow">Day {todaysWorkout.programDay || activeWorkoutIndex + 1}</p>
                         <h2 id="today-workout-heading" className="mt-2 text-2xl font-semibold tracking-tight text-stone-50">
-                          {getWorkoutTitle(todaysWorkout)}
+                          {getWorkoutDayLabel(todaysWorkout, activeWorkoutIndex)}
                         </h2>
+                        <p className="mt-1 text-sm text-stone-500">Week {programWeek} · Main Lift</p>
                         {todaysWorkout.notes && <p className="mt-2 text-sm leading-6 text-stone-400">{todaysWorkout.notes}</p>}
                       </div>
                       <div className="text-left sm:text-right">
@@ -717,15 +774,14 @@ function StrengthProgram() {
                           </div>
 
                           <div className="mt-4 overflow-x-auto">
-                            <table className="w-full min-w-[720px] text-left text-sm">
+                            <table className="w-full min-w-[560px] text-left text-sm">
                               <thead className="border-b border-stone-800 text-xs uppercase tracking-[0.16em] text-stone-500">
                                 <tr>
-                                  <th className="py-2 pr-4">Done</th>
                                   <th className="py-2 pr-4">Set</th>
-                                  <th className="py-2 pr-4">Target Weight</th>
-                                  <th className="py-2 pr-4">Target Reps</th>
-                                  <th className="py-2 pr-4">Plus Set</th>
-                                  <th className="py-2 pr-4 text-right">Estimated Volume</th>
+                                  <th className="py-2 pr-4">Target</th>
+                                  <th className="py-2 pr-4">Reps</th>
+                                  <th className="py-2 pr-4">Type</th>
+                                  <th className="py-2 pr-4 text-right">Status</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-stone-800 text-stone-300">
@@ -735,29 +791,34 @@ function StrengthProgram() {
 
                                   return (
                                     <tr key={setKey} className={isComplete ? 'text-stone-500' : ''}>
-                                      <td className="py-3 pr-4">
-                                        <input
-                                          type="checkbox"
-                                          checked={isComplete}
-                                          onChange={() => toggleSetCompletion(exerciseIndex, setIndex)}
-                                          disabled={selectedWeekReadOnly || selectedWeekLocked}
-                                          aria-label={`Mark ${exercise.exerciseName} set ${set.setNumber} complete`}
-                                          className="h-4 w-4 rounded border-stone-700 bg-stone-950 accent-stone-200"
-                                        />
-                                      </td>
                                       <td className="py-3 pr-4">{set.setNumber}</td>
                                       <td className="py-3 pr-4">{set.weight || 0} lb</td>
-                                      <td className="py-3 pr-4">{set.targetReps || set.reps || 0}</td>
+                                      <td className="py-3 pr-4">
+                                        {set.targetReps || set.reps || 0}
+                                        {set.isPlusSet ? '+' : ''}
+                                      </td>
                                       <td className="py-3 pr-4">
                                         {set.isPlusSet ? (
-                                          <span className="rounded-md border border-amber-300/40 px-2 py-1 text-xs font-semibold text-amber-200">
-                                            {set.targetReps || set.reps || 0}+
+                                          <span className="rounded-md border border-amber-300/40 px-2 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-amber-200">
+                                            Plus Set
                                           </span>
                                         ) : (
-                                          <span className="text-stone-600">No</span>
+                                          <span className="text-stone-500">Standard</span>
                                         )}
                                       </td>
-                                      <td className="py-3 pr-4 text-right">{getSetVolume(set)} lb</td>
+                                      <td className="py-3 pr-4 text-right">
+                                        <label className="inline-flex items-center justify-end gap-2">
+                                          <span className="text-sm">{isComplete ? 'Complete' : 'Open'}</span>
+                                          <input
+                                            type="checkbox"
+                                            checked={isComplete}
+                                            onChange={() => toggleSetCompletion(exerciseIndex, setIndex)}
+                                            disabled={selectedWeekReadOnly || selectedWeekLocked}
+                                            aria-label={`Mark ${exercise.exerciseName} set ${set.setNumber} complete`}
+                                            className="h-4 w-4 rounded border-stone-700 bg-stone-950 accent-stone-200"
+                                          />
+                                        </label>
+                                      </td>
                                     </tr>
                                   );
                                 })}
@@ -767,168 +828,95 @@ function StrengthProgram() {
                         </div>
                       ))}
                     </div>
+
+                    <form onSubmit={updateProgression} className="mt-8 border-t border-stone-800 pt-6">
+                      <p className="eyebrow">Progression</p>
+                      <div className="mt-3 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+                        <div>
+                          <h3 className="text-xl font-semibold tracking-tight text-stone-50">
+                            {getLiftLabel(selectedTrainingMax?.liftName || activeLiftName || 'bench')}
+                          </h3>
+                          <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+                            <div>
+                              <dt className="text-sm text-stone-500">Current TM</dt>
+                              <dd className="mt-1 text-2xl font-semibold text-stone-50">{selectedTrainingMax?.trainingMax || 0} lb</dd>
+                            </div>
+                            <div>
+                              <dt className="text-sm text-stone-500">Next TM</dt>
+                              <dd className="mt-1 text-2xl font-semibold text-stone-50">
+                                {progressionResult?.newTrainingMax || selectedTrainingMax?.trainingMax || 0} lb
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-sm text-stone-500">Increase</dt>
+                              <dd className="mt-1 text-2xl font-semibold text-stone-50">
+                                {progressionResult?.increaseAmount ? `+${progressionResult.increaseAmount}` : latestSelectedHistory?.increaseAmount || 0} lb
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="text-sm font-medium text-stone-300">Plus-set reps</span>
+                            <input
+                              type="number"
+                              name="plusSetReps"
+                              min="0"
+                              value={progressionForm.plusSetReps}
+                              onChange={handleProgressionChange}
+                              disabled={selectedWeekReadOnly || selectedWeekLocked}
+                              required
+                              className="form-field"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-sm font-medium text-stone-300">Training note</span>
+                            <input
+                              type="text"
+                              name="notes"
+                              value={progressionForm.notes}
+                              onChange={handleProgressionChange}
+                              disabled={selectedWeekReadOnly || selectedWeekLocked}
+                              className="form-field"
+                              placeholder="Optional note"
+                            />
+                          </label>
+                          <button type="submit" disabled={saving || trainingMaxes.length === 0 || selectedWeekReadOnly || selectedWeekLocked} className="btn-accent sm:w-fit">
+                            {saving ? 'Applying...' : 'Apply Progression'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 rounded-md border border-stone-800 bg-stone-950/50 p-4">
+                        <p className="text-sm font-medium text-stone-200">Recommendation</p>
+                        <p className="mt-2 text-sm leading-6 text-stone-400">
+                          {progressionResult?.recommendation?.message ||
+                            'Enter the completed plus-set reps and apply progression to generate the next training max recommendation.'}
+                        </p>
+                      </div>
+                    </form>
                   </div>
                 </div>
               )}
             </section>
           </section>
 
-          <section className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]" aria-labelledby="progression-heading">
-            <form onSubmit={updateProgression} className="quiet-card">
-              <p className="eyebrow">Progression</p>
-              <h2 id="progression-heading" className="mt-2 text-2xl font-semibold tracking-tight text-stone-50">
-                Apply plus-set result
-              </h2>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <label className="block">
-                  <span className="text-sm font-medium text-stone-300">Lift</span>
-                  <select
-                    name="trainingMaxId"
-                    value={progressionForm.trainingMaxId}
-                    onChange={handleProgressionChange}
-                    disabled={selectedWeekReadOnly || selectedWeekLocked}
-                    required
-                    className="form-field"
-                  >
-                    <option value="">Select lift</option>
-                    {trainingMaxes.map((trainingMax) => (
-                      <option key={trainingMax._id} value={trainingMax._id}>
-                        {getLiftLabel(trainingMax.liftName)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-medium text-stone-300">Plus-set reps</span>
-                  <input
-                    type="number"
-                    name="plusSetReps"
-                    min="0"
-                    value={progressionForm.plusSetReps}
-                    onChange={handleProgressionChange}
-                    disabled={selectedWeekReadOnly || selectedWeekLocked}
-                    required
-                    className="form-field"
-                  />
-                </label>
-
-                <label className="block md:col-span-2">
-                  <span className="text-sm font-medium text-stone-300">Training note</span>
-                  <input
-                    type="text"
-                    name="notes"
-                    value={progressionForm.notes}
-                    onChange={handleProgressionChange}
-                    disabled={selectedWeekReadOnly || selectedWeekLocked}
-                    className="form-field"
-                    placeholder="Optional note"
-                  />
-                </label>
-              </div>
-
-              <button type="submit" disabled={saving || trainingMaxes.length === 0 || selectedWeekReadOnly || selectedWeekLocked} className="btn-accent mt-6">
-                {saving ? 'Applying...' : 'Apply Progression'}
-              </button>
-            </form>
-
-            <div className="border-y border-stone-800 py-6">
-              <h3 className="section-title">{getLiftLabel(selectedTrainingMax?.liftName || 'bench')}</h3>
-              <dl className="mt-5 grid gap-5 sm:grid-cols-4">
-                <div>
-                  <dt className="text-sm text-stone-500">Current TM</dt>
-                  <dd className="mt-1 text-2xl font-semibold text-stone-50">{selectedTrainingMax?.trainingMax || 0}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-stone-500">Plus Set</dt>
-                  <dd className="mt-1 text-2xl font-semibold text-stone-50">
-                    {(progressionResult?.plusSetReps ?? progressionForm.plusSetReps) || 0} reps
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-stone-500">Next TM</dt>
-                  <dd className="mt-1 text-2xl font-semibold text-stone-50">
-                    {progressionResult?.newTrainingMax || selectedTrainingMax?.trainingMax || 0}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-stone-500">Increase</dt>
-                  <dd className="mt-1 text-2xl font-semibold text-stone-50">
-                    {progressionResult?.increaseAmount ? `+${progressionResult.increaseAmount}` : latestSelectedHistory?.increaseAmount || 0} lb
-                  </dd>
-                </div>
-              </dl>
-
-              <div className="mt-6 rounded-md border border-stone-800 bg-stone-950/50 p-4">
-                <p className="text-sm font-medium text-stone-200">Recommendation</p>
-                <p className="mt-2 text-sm leading-6 text-stone-400">
-                  {progressionResult?.recommendation?.message ||
-                    'Enter the completed plus-set reps and apply progression to generate the next training max recommendation.'}
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section className="border-t border-stone-800 pt-8" aria-labelledby="setup-heading">
-            {selectedWeekCanGenerate ? (
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h2 id="setup-heading" className="section-title">
-                    {selectedWeekGenerated ? `Adjust Week ${programWeek} Maxes` : `Enter Week ${programWeek} Maxes`}
-                  </h2>
-                  <p className="section-copy">Training max is previewed at 90%. Save all four maxes before generating this week.</p>
-                </div>
-              </div>
+          <section className="border-t border-stone-800 pt-6" aria-labelledby="history-heading">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-4 text-left"
+              onClick={() => setHistoryOpen((current) => !current)}
+              aria-expanded={historyOpen}
+              aria-controls="program-history-panel"
+            >
+              <span id="history-heading" className="section-title">Program History</span>
+              <span className="text-sm font-semibold text-stone-500">{historyOpen ? 'Hide' : 'Show'}</span>
+            </button>
+            {historyOpen && (historyItems.length === 0 ? (
+              <p id="program-history-panel" className="empty-state mt-4">Weekly max history will appear after you generate your first week.</p>
             ) : (
-              <div>
-                <h2 id="setup-heading" className="section-title">Weekly Max Entry</h2>
-                <p className="empty-state mt-4">
-                  {selectedWeekLocked
-                    ? `Complete Week ${activeProgramWeekNumber} to unlock Week ${programWeek}.`
-                    : 'Completed weeks are view-only.'}
-                </p>
-              </div>
-            )}
-
-            {selectedWeekCanGenerate && (
-            <form onSubmit={saveOneRepMaxes} className="mt-6">
-              <div className="grid gap-4 md:grid-cols-4">
-                {lifts.map((lift) => {
-                  const oneRepMax = oneRepMaxes[lift.key];
-                  const previewTrainingMax = calculateTrainingMax(oneRepMax);
-
-                  return (
-                    <label key={lift.key} className="block">
-                      <span className="text-sm font-medium text-stone-300">{lift.label} 1RM</span>
-                      <input
-                        type="number"
-                        min="0"
-                        value={oneRepMax}
-                        onChange={(event) => handleOneRepMaxChange(lift.key, event.target.value)}
-                        className="form-field"
-                      />
-                      <span className="mt-1 block text-xs text-stone-500">TM preview: {previewTrainingMax}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <button type="submit" disabled={saving} className="btn-secondary mt-6">
-                {saving ? 'Saving...' : 'Save Training Maxes'}
-              </button>
-            </form>
-            )}
-          </section>
-
-          <section className="space-y-4" aria-labelledby="history-heading">
-            <h2 id="history-heading" className="section-title">
-              Program History
-            </h2>
-            {historyItems.length === 0 ? (
-              <p className="empty-state">Weekly max history will appear after you generate your first week.</p>
-            ) : (
-              <div className="overflow-x-auto border border-stone-800">
+              <div id="program-history-panel" className="mt-4 overflow-x-auto border border-stone-800">
                 <table className="w-full min-w-[1040px] text-left text-sm">
                   <thead className="border-b border-stone-800 text-xs uppercase tracking-[0.16em] text-stone-500">
                     <tr>
@@ -962,7 +950,7 @@ function StrengthProgram() {
                   </tbody>
                 </table>
               </div>
-            )}
+            ))}
           </section>
         </>
       )}

@@ -63,6 +63,22 @@ const completedStream = ({ id = 'resp_stream', output = [], text = '' } = {}) =>
     },
   ]);
 
+const completedStreamWithOutputItem = ({ id = 'resp_stream', item, text = '' } = {}) =>
+  streamFromEvents([
+    ...(text ? [{ type: 'response.output_text.delta', delta: text }] : []),
+    {
+      type: 'response.output_item.done',
+      item,
+    },
+    {
+      type: 'response.completed',
+      response: {
+        id,
+        output: [],
+      },
+    },
+  ]);
+
 const failedStream = () =>
   streamFromEvents([
     {
@@ -303,6 +319,37 @@ test('Streaming Coach agent uses the training max tool for current max questions
     ['status', 'status', 'status', 'text_delta', 'complete'],
   );
   assert.equal(events[1].message, 'Checking your strength numbers...');
+});
+
+test('Streaming Coach agent reads tool calls from output item stream events', async () => {
+  const client = createFakeClientWithOptions([
+    completedStreamWithOutputItem({
+      id: 'resp_tool_request',
+      item: functionCall('get_current_program'),
+    }),
+    completedStream({
+      id: 'resp_tool_answer',
+      text: 'Today is your next programmed bench session.',
+    }),
+  ]);
+  const executedTools = [];
+  const agent = createStreamingCoachAgent({
+    client,
+    executeTool: async ({ name, authenticatedUserId }) => {
+      executedTools.push({ name, authenticatedUserId });
+      return { name, result: { program: { weekNumber: 1, workouts: [] } } };
+    },
+  });
+
+  const response = await agent({
+    authenticatedUserId: 'user-a',
+    message: 'What should I train next?',
+    onEvent: async () => {},
+  });
+
+  assert.equal(response.answer, 'Today is your next programmed bench session.');
+  assert.deepEqual(response.sources, ['get_current_program']);
+  assert.deepEqual(executedTools, [{ name: 'get_current_program', authenticatedUserId: 'user-a' }]);
 });
 
 test('Streaming Coach agent supports multiple tool calls before the final answer', async () => {
