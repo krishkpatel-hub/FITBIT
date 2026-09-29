@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import CalendarGrid from '../../components/Calendar/Calendar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { workoutService } from '../../services/workoutService';
+import { appPaths } from '../../utils/navigation';
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -21,6 +23,7 @@ const formatDate = (date) =>
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC',
   }).format(new Date(date));
 
 const getMainLifts = (workout) =>
@@ -286,10 +289,17 @@ function CalendarPage() {
           <div className="h-96 animate-pulse rounded-lg border border-stone-800 bg-stone-900/40" />
         </div>
       ) : workouts.length === 0 ? (
-        <p className="empty-state">Log or generate your first workout to see your training calendar.</p>
+        <div className="border-y border-[#D2CFC7] py-8">
+          <p className="font-semibold">Your training calendar starts with a workout.</p>
+          <p className="mt-2 text-sm text-stone-500">Generate your program to see planned days, or log a session in Train.</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link to={appPaths.program} className="btn-primary">Open Program</Link>
+            <Link to={appPaths.train} className="btn-secondary">Start Workout</Link>
+          </div>
+        </div>
       ) : (
         <>
-          <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
             <CalendarGrid
               monthDate={monthDate}
               selectedDate={selectedDate}
@@ -298,7 +308,7 @@ function CalendarPage() {
               onMonthChange={setMonthDate}
             />
 
-            <aside className="quiet-card">
+            <aside className="quiet-card min-w-0">
               <p className="eyebrow">Selected Day</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-50">{formatDate(selectedDate)}</h2>
               {selectedWorkouts.length === 0 ? (

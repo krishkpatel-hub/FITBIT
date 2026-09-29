@@ -11,6 +11,7 @@ function Sidebar() {
           <NavLink
             key={link.to}
             to={link.to}
+            end={link.end}
             className={({ isActive }) =>
               isActive
                 ? 'rounded-md border border-stone-700 bg-stone-900 px-3 py-2 text-sm font-medium text-stone-50'

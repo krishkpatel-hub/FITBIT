@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { coachService } from '../../services/coachService';
+import { appPaths } from '../../utils/navigation';
 
 const priorityOrder = {
   high: 3,
@@ -293,7 +294,7 @@ function Coach() {
             Explainable coaching notes generated from your workouts, training maxes, PRs, and progress logs.
           </p>
         </div>
-        <Link to="/analytics" className="btn-secondary">
+        <Link to={appPaths.analytics} className="btn-secondary">
           View Analytics
         </Link>
       </div>

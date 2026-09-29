@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { trainingMaxService } from '../../services/trainingMaxService';
 import { workoutService } from '../../services/workoutService';
+import { appPaths } from '../../utils/navigation';
 
 const lifts = [
   { key: 'squat', label: 'Squat' },
@@ -525,7 +526,7 @@ function StrengthProgram() {
               <p className="text-stone-500">Generated</p>
               <p className="mt-1 font-medium text-stone-100">{activeWeekWorkouts.length} workouts</p>
             </div>
-            <Link to="/calendar" className="btn-secondary col-span-2 self-start sm:col-span-1">
+            <Link to={appPaths.calendar} className="btn-secondary col-span-2 self-start sm:col-span-1">
               View Calendar
             </Link>
           </div>
@@ -759,6 +760,9 @@ function StrengthProgram() {
                           <p className="mt-2 text-xs uppercase tracking-[0.16em] text-stone-600">View only</p>
                         )}
                         <p className="mt-3 text-sm text-stone-500">Est. volume {getWorkoutEstimatedVolume(todaysWorkout)} lb</p>
+                        {todaysWorkout.status === 'planned' && !selectedWeekReadOnly && !saving && (
+                          <Link to={appPaths.train} state={{ plannedWorkoutId: todaysWorkout._id }} className="btn-secondary mt-3">Open in Train</Link>
+                        )}
                       </div>
                     </div>
 

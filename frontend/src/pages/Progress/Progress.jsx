@@ -1,30 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { prService } from '../../services/prService';
 import { progressService } from '../../services/progressService';
 import { workoutService } from '../../services/workoutService';
+import { appPaths, progressSectionPaths } from '../../utils/navigation';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const WORKOUT_DRAFT_STORAGE_KEY = 'getjackedcoach.workoutDraft';
 
-const sections = [
-  { id: 'log-workout', label: 'Log Workout' },
-  { id: 'log-pr', label: 'Log PR' },
-  { id: 'training-history', label: 'Training History' },
-  { id: 'strength-progress', label: 'Strength Progress' },
-  { id: 'body-metrics', label: 'Body Metrics' },
-];
+const sectionHeadings = {
+  'log-workout': ['Train', 'Start Workout', 'Open a planned session or build your own workout.'],
+  'log-pr': ['Progress', 'Personal Records', 'Log a PR when you hit a new best. Review your records below.'],
+  'training-history': ['Progress', 'Training History', 'Your completed sessions, exercises, and sets in one place.'],
+  'body-metrics': ['Progress', 'Body Metrics', 'Track body measurements over time. Add a measurement below to begin.'],
+};
 
 const emptyProgressForm = {
   date: today(),
@@ -91,12 +82,7 @@ const formatDate = (date) =>
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(date));
-
-const shortDate = (date) =>
-  new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
+    timeZone: 'UTC',
   }).format(new Date(date));
 
 const toProgressForm = (log) => ({
@@ -136,15 +122,13 @@ const toWorkoutForm = (workout) => ({
 });
 
 const getPRValue = (pr) => Number(pr.estimatedOneRepMax || pr.oneRepMax || pr.weight || 0);
-const normalizeExercise = (name) => name?.trim().toLowerCase() || 'unknown';
 
-function Progress() {
+function Progress({ activeSection = 'training-history' }) {
   const { logout } = useAuth();
   const realtime = useRealtime();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedSection = searchParams.get('section') || 'log-workout';
-  const activeSection = sections.some((section) => section.id === requestedSection) ? requestedSection : 'log-workout';
+  const navigate = useNavigate();
+  const [eyebrow, heading, description] = sectionHeadings[activeSection];
 
   const [workouts, setWorkouts] = useState([]);
   const [bodyLogs, setBodyLogs] = useState([]);
@@ -158,7 +142,12 @@ function Progress() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(location.state?.success || '');
+
+  useEffect(() => {
+    setError('');
+    setSuccess(location.state?.success || '');
+  }, [activeSection]);
 
   const loadWorkoutDraft = () => {
     const stateDraft = location.state?.workoutDraft;
@@ -224,6 +213,14 @@ function Progress() {
   }, [realtime]);
 
   useEffect(() => {
+    if (activeSection !== 'log-workout') return;
+    // A history edit carries the existing record, not a new template draft.
+    if (location.state?.editingWorkout) {
+      setWorkoutForm(toWorkoutForm(location.state.editingWorkout));
+      setEditingWorkoutId(location.state.editingWorkout._id);
+      navigate(location.pathname, { replace: true, state: null });
+      return;
+    }
     const workoutDraft = loadWorkoutDraft();
 
     if (!workoutDraft) {
@@ -241,9 +238,20 @@ function Progress() {
     setEditingWorkoutId(null);
     setError('');
     setSuccess(`${workoutDraft.templateName || workoutDraft.title} loaded. Add today's sets, reps, and weight.`);
-    setSearchParams({ section: 'log-workout' }, { replace: true });
     window.sessionStorage.removeItem(WORKOUT_DRAFT_STORAGE_KEY);
-  }, []);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [activeSection, location.state?.workoutDraft, location.state?.editingWorkout]);
+
+  useEffect(() => {
+    const plannedWorkoutId = location.state?.plannedWorkoutId;
+    if (activeSection !== 'log-workout' || !plannedWorkoutId || loading) return;
+    const workout = workouts.find((item) => item._id === plannedWorkoutId);
+    if (workout) {
+      setWorkoutForm(toWorkoutForm(workout));
+      setEditingWorkoutId(workout._id);
+    }
+    navigate(location.pathname, { replace: true, state: null });
+  }, [activeSection, loading, location.state?.plannedWorkoutId, workouts]);
 
   const plannedWorkouts = useMemo(
     () => workouts.filter((workout) => workout.status === 'planned').sort((a, b) => new Date(a.date) - new Date(b.date)),
@@ -255,62 +263,8 @@ function Progress() {
     [workouts],
   );
 
-  const derivedWorkoutPrs = useMemo(() => {
-    const bestByExercise = new Map();
-
-    completedWorkouts.forEach((workout) => {
-      workout.exercises?.forEach((exercise) => {
-        exercise.sets?.forEach((set) => {
-          if (!set.completed || !Number(set.weight) || !Number(set.reps)) {
-            return;
-          }
-
-          const estimatedOneRepMax = estimateOneRepMax(set.weight, set.reps);
-          const key = normalizeExercise(exercise.exerciseName);
-          const current = bestByExercise.get(key);
-
-          if (!current || estimatedOneRepMax > current.estimatedOneRepMax) {
-            bestByExercise.set(key, {
-              exerciseName: exercise.exerciseName,
-              weight: Number(set.weight),
-              reps: Number(set.reps),
-              estimatedOneRepMax,
-              date: workout.date,
-              source: workout.title,
-            });
-          }
-        });
-      });
-    });
-
-    return [...bestByExercise.values()].sort((a, b) => b.estimatedOneRepMax - a.estimatedOneRepMax);
-  }, [completedWorkouts]);
-
-  const prChartData = useMemo(
-    () =>
-      [...prs]
-      .sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt))
-      .map((pr) => ({
-        label: shortDate(pr.date || pr.createdAt),
-        estimatedOneRepMax: getPRValue(pr),
-      })),
-    [prs],
-  );
-
-  const strengthChartData = useMemo(() => {
-    const volumeByDate = completedWorkouts.reduce((groups, workout) => {
-      const key = workout.date?.slice(0, 10);
-      groups[key] = (groups[key] || 0) + Number(workout.totalVolume || 0);
-      return groups;
-    }, {});
-
-    return Object.entries(volumeByDate)
-      .sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB))
-      .map(([date, volume]) => ({ label: shortDate(date), volume }));
-  }, [completedWorkouts]);
-
-  const setSection = (sectionId) => {
-    setSearchParams({ section: sectionId });
+  const setSection = (sectionId, state) => {
+    navigate(progressSectionPaths[sectionId], { state });
   };
 
   const resetWorkoutForm = () => {
@@ -451,9 +405,9 @@ function Progress() {
       }
 
       resetWorkoutForm();
-      setSuccess('Workout saved to Progress.');
+      setSuccess('Workout saved to Training History.');
       await loadProgressData();
-      setSection('training-history');
+      setSection('training-history', { success: 'Workout saved to Training History.' });
     } catch (err) {
       setError(await handleApiError(err, 'Unable to save workout.'));
     } finally {
@@ -588,31 +542,16 @@ function Progress() {
   return (
     <section className="page-stack">
       <header className="border-b border-stone-800 pb-8">
-        <p className="eyebrow">Training Progress</p>
-        <h1 className="page-title">Progress</h1>
-        <p className="page-copy">
-          Log workouts, review training history, track personal records, and keep body metrics in one focused place.
-        </p>
+        <p className="eyebrow">{eyebrow}</p>
+        <h1 className="page-title">{heading}</h1>
+        <p className="page-copy">{description}</p>
       </header>
 
-      <div className="flex flex-wrap gap-2" aria-label="Progress sections">
-        {sections.map((section) => (
-          <button
-            key={section.id}
-            type="button"
-            onClick={() => setSection(section.id)}
-            className={activeSection === section.id ? 'btn-primary px-3' : 'btn-secondary px-3'}
-          >
-            {section.label}
-          </button>
-        ))}
-      </div>
-
-      {error && <p className="status-error">{error}</p>}
-      {success && <p className="status-success">{success}</p>}
+      {error && <p role="alert" className="status-error">{error}</p>}
+      {success && <p role="status" className="status-success">{success}</p>}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-3" aria-label="Loading progress">
+        <div className="grid gap-4 md:grid-cols-3" aria-label="Loading training log">
           {[0, 1, 2].map((item) => (
             <div key={item} className="h-32 animate-pulse rounded-lg border border-stone-800 bg-stone-900/40" />
           ))}
@@ -624,7 +563,7 @@ function Progress() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="section-title">Log Workout</h2>
-                  <p className="section-copy">Create a workout manually or start from a finalized template, then add today's sets.</p>
+                  <p className="section-copy">Record today's exercises, sets, reps, and weight.</p>
                 </div>
                 {editingWorkoutId && (
                   <button type="button" onClick={resetWorkoutForm} className="btn-secondary px-3">
@@ -647,11 +586,12 @@ function Progress() {
 
               {plannedWorkouts.length === 0 && (
                 <p className="empty-state mt-4">
-                  Create a workout manually or open Templates, finalize a routine, and it will load here automatically.
+                  No planned sessions yet. <Link to={appPaths.templates} className="font-semibold underline">Choose a template</Link>, <Link to={appPaths.program} className="font-semibold underline">generate a program</Link>, or add your own exercises below.
                 </p>
               )}
 
               <form onSubmit={saveWorkout} className="mt-6 space-y-6">
+                <h3 className="eyebrow">Workout Details</h3>
                 <div className="grid gap-4 md:grid-cols-4">
                   <label className="block md:col-span-2">
                     <span className="text-sm font-medium text-stone-300">Workout name</span>
@@ -662,7 +602,7 @@ function Progress() {
                     <input type="date" value={workoutForm.date} onChange={(event) => updateWorkoutField('date', event.target.value)} className="form-field" />
                   </label>
                   <label className="block">
-                    <span className="text-sm font-medium text-stone-300">Duration</span>
+                    <span className="text-sm font-medium text-stone-300">Duration (minutes)</span>
                     <input type="number" min="0" value={workoutForm.duration} onChange={(event) => updateWorkoutField('duration', event.target.value)} className="form-field" />
                   </label>
                   <label className="block md:col-span-4">
@@ -679,7 +619,7 @@ function Progress() {
                 </div>
 
                 {workoutForm.exercises.length === 0 ? (
-                  <p className="empty-state">Add exercises manually or finalize a template to load exercises here.</p>
+                  <p className="empty-state">Add your first exercise, then record the sets you perform.</p>
                 ) : (
                   <div className="space-y-7">
                     {workoutForm.exercises.map((exercise, exerciseIndex) => (
@@ -692,7 +632,7 @@ function Progress() {
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">
                               Exercise {exerciseIndex + 1}
                             </p>
-                            <h3 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-[#151714]">
+                            <h3 className="mt-2 break-words text-2xl font-semibold text-[#151714]">
                               {exercise.exerciseName || 'Untitled Exercise'}
                             </h3>
                             <p className="mt-1 text-sm text-[#747872]">
@@ -738,8 +678,8 @@ function Progress() {
                         ) : (
                           <div className="mt-4 divide-y divide-[#D2CFC7] border-y border-[#D2CFC7]">
                             {exercise.sets.map((set, setIndex) => (
-                              <div key={`workout-set-${setIndex}`} className="grid gap-3 py-4 md:grid-cols-[72px_1fr_1fr_100px_auto] md:items-end">
-                                <div className="text-sm font-semibold text-[#4F534E]">Set {setIndex + 1}</div>
+                              <div key={`workout-set-${setIndex}`} className="grid grid-cols-2 gap-3 py-4 md:grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)_80px_auto] md:items-end">
+                                <div className="col-span-2 text-sm font-semibold text-[#4F534E] md:col-span-1">Set {setIndex + 1}</div>
                                 <label className="block">
                                   <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Reps</span>
                                   <input type="number" min="0" value={set.reps} onChange={(event) => updateWorkoutSet(exerciseIndex, setIndex, 'reps', event.target.value)} className="form-field" />
@@ -788,7 +728,7 @@ function Progress() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="section-title">{editingPrId ? 'Edit Personal Record' : 'Log Personal Record'}</h2>
-                  <p className="section-copy">Manual PR logging uses the existing PR fields and keeps records tied to your account.</p>
+                  <p className="section-copy">Record a personal best and review your previous records below.</p>
                 </div>
                 {editingPrId && (
                   <button type="button" onClick={resetPrForm} className="btn-secondary px-3">
@@ -829,18 +769,45 @@ function Progress() {
                   {saving ? 'Saving...' : editingPrId ? 'Update PR' : 'Log PR'}
                 </button>
               </form>
+              <div className="mt-8 border-t border-stone-800 pt-5">
+                <h3 className="section-title">PR History</h3>
+                {prs.length === 0 ? (
+                  <p className="mt-3 text-sm text-stone-500">Your personal records will appear here after you log your first PR.</p>
+                ) : (
+                  <div className="mt-3 divide-y divide-stone-800">
+                    {prs.map((pr) => (
+                      <div key={pr._id} className="flex flex-wrap items-center justify-between gap-3 py-4">
+                        <div className="min-w-0">
+                          <h4 className="break-words font-semibold text-stone-100">{pr.exerciseName}</h4>
+                          <p className="mt-1 text-sm text-stone-500">{formatDate(pr.date)} · {Number(pr.weight || 0)} lb x {Number(pr.reps || 0)} · Best 1RM {getPRValue(pr)} lb</p>
+                        </div>
+                        <button type="button" className="btn-secondary" onClick={() => {
+                          setPrForm({ ...emptyPrForm, ...pr, date: pr.date.slice(0, 10) });
+                          setEditingPrId(pr._id);
+                          setError('');
+                          setSuccess('');
+                        }}>Edit PR</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </section>
           )}
 
           {activeSection === 'training-history' && (
             <section className="space-y-5">
-              <div>
-                <h2 className="section-title">Training History</h2>
-                <p className="section-copy">Completed workouts appear here after they are saved from Progress or completed elsewhere.</p>
+                <div>
+                  <h2 className="section-title">Completed sessions</h2>
+                <p className="section-copy">Review completed sessions. Expand a workout to see its exercises and sets.</p>
               </div>
 
               {completedWorkouts.length === 0 ? (
-                <p className="empty-state">Save your first workout to start building training history.</p>
+                <div className="border-y border-[#D2CFC7] py-8">
+                  <p className="font-semibold">Your completed workouts will appear here.</p>
+                  <p className="mt-2 text-sm text-stone-500">Record a session to review your exercises and performance over time.</p>
+                  <Link to={appPaths.train} className="btn-primary mt-5">Start Workout</Link>
+                </div>
               ) : (
                 <div className="divide-y divide-stone-800 border-y border-stone-800">
                   {completedWorkouts.map((workout) => (
@@ -851,6 +818,7 @@ function Progress() {
                           <h3 className="mt-2 text-xl font-semibold text-stone-50">{workout.title}</h3>
                           <p className="mt-1 text-sm text-stone-500">
                             {workout.exercises?.length || 0} exercises
+                            {` · ${workout.exercises?.reduce((count, exercise) => count + (exercise.sets?.length || 0), 0) || 0} sets`}
                             {workout.duration ? ` · ${workout.duration} min` : ''}
                             {workout.totalVolume ? ` · ${Number(workout.totalVolume)} lb volume` : ''}
                           </p>
@@ -860,9 +828,7 @@ function Progress() {
                             type="button"
                             onClick={(event) => {
                               event.preventDefault();
-                              setWorkoutForm(toWorkoutForm(workout));
-                              setEditingWorkoutId(workout._id);
-                              setSection('log-workout');
+                              setSection('log-workout', { editingWorkout: workout });
                             }}
                             className="btn-secondary px-3"
                           >
@@ -901,62 +867,6 @@ function Progress() {
             </section>
           )}
 
-          {activeSection === 'strength-progress' && (
-            <section className="grid gap-6 lg:grid-cols-2">
-              <div className="quiet-card lg:col-span-2">
-                <h2 className="section-title">Strength Progress</h2>
-                {strengthChartData.length === 0 ? (
-                  <p className="empty-state mt-5">Log completed workouts to see volume over time.</p>
-                ) : (
-                  <div className="mt-6 h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={strengthChartData}>
-                        <CartesianGrid stroke="#292524" vertical={false} />
-                        <XAxis dataKey="label" stroke="#78716c" tickLine={false} axisLine={false} />
-                        <YAxis stroke="#78716c" tickLine={false} axisLine={false} />
-                        <Tooltip contentStyle={{ background: '#1c1917', border: '1px solid #44403c', color: '#fafaf9' }} />
-                        <Line type="monotone" dataKey="volume" name="Total Volume" stroke="#d6c08a" strokeWidth={2} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-
-              <div className="quiet-card">
-                <h3 className="section-title">Manual PR Trend</h3>
-                {prChartData.length === 0 ? (
-                  <p className="empty-state mt-5">Manual PRs will chart here after you log them.</p>
-                ) : (
-                  <div className="mt-6 h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={prChartData}>
-                        <CartesianGrid stroke="#292524" vertical={false} />
-                        <XAxis dataKey="label" stroke="#78716c" tickLine={false} axisLine={false} />
-                        <YAxis stroke="#78716c" tickLine={false} axisLine={false} />
-                        <Tooltip contentStyle={{ background: '#1c1917', border: '1px solid #44403c', color: '#fafaf9' }} />
-                        <Line type="monotone" dataKey="estimatedOneRepMax" name="Estimated 1RM" stroke="#8FA3AD" strokeWidth={2} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-
-              <div className="quiet-card">
-                <h3 className="section-title">Recent Performance</h3>
-                {derivedWorkoutPrs.length === 0 ? (
-                  <p className="empty-state mt-5">Reliable exercise bests appear after completed workouts.</p>
-                ) : (
-                  <div className="mt-5 divide-y divide-stone-800">
-                    {derivedWorkoutPrs.slice(0, 5).map((record) => (
-                      <p key={`${record.exerciseName}-summary`} className="py-3 text-sm text-stone-300">
-                        {record.exerciseName}: estimated {record.estimatedOneRepMax} lb from {record.weight} x {record.reps}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
 
           {activeSection === 'body-metrics' && (
             <section className="space-y-6">

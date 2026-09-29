@@ -1,413 +1,156 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { dashboardService } from '../../services/dashboardService';
 import { demoService } from '../../services/demoService';
 import { trainingMaxService } from '../../services/trainingMaxService';
+import { appPaths } from '../../utils/navigation';
 
-const lifts = [
-  { key: 'squat', label: 'Squat' },
-  { key: 'bench', label: 'Bench Press' },
-  { key: 'deadlift', label: 'Deadlift' },
-  { key: 'overhead_press', label: 'Overhead Press' },
-];
-
-const featureGuide = [
-  {
-    title: 'Strength Program',
-    description: 'Your generated adaptive weekly strength plan.',
-    to: '/strength-program',
-  },
-  {
-    title: 'Templates',
-    description: 'Build reusable workouts for sessions outside your Strength Program.',
-    to: '/templates',
-  },
-  {
-    title: 'Progress',
-    description: 'Log workouts, personal records, and review your training history.',
-    to: '/progress',
-  },
-  {
-    title: 'Analytics',
-    description: 'Explore deeper trends from your training data.',
-    to: '/analytics',
-  },
-  {
-    title: 'Coach',
-    description: 'Get guidance based on your training information.',
-    to: '/coach',
-  },
-];
-
-const emptyOneRepMaxes = lifts.reduce((values, lift) => {
-  values[lift.key] = '';
-  return values;
-}, {});
-
-const numberOrZero = (value) => (value === '' ? 0 : Number(value));
-const hasPositiveNumber = (value) => value !== '' && Number(value) > 0;
-
-const formatDate = (date) => {
-  if (!date) return 'Not scheduled';
-
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(date));
-};
+const formatDate = (date) => date ? new Intl.DateTimeFormat('en-US', {
+  weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
+}).format(new Date(date)) : 'Not scheduled';
 
 function Dashboard() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const realtime = useRealtime();
-  const navigate = useNavigate();
-  const [dashboardData, setDashboardData] = useState(null);
-  const [trainingMaxes, setTrainingMaxes] = useState([]);
-  const [oneRepMaxes, setOneRepMaxes] = useState(emptyOneRepMaxes);
+  const [dashboard, setDashboard] = useState(null);
+  const [weeks, setWeeks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [generatingProgram, setGeneratingProgram] = useState(false);
-  const [seedingDemo, setSeedingDemo] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const trainingMaxByLift = useMemo(
-    () =>
-      trainingMaxes.reduce((lookup, trainingMax) => {
-        lookup[trainingMax.liftName] = trainingMax;
-        return lookup;
-      }, {}),
-    [trainingMaxes],
-  );
-
-  const configuredLifts = useMemo(
-    () => lifts.filter((lift) => hasPositiveNumber(oneRepMaxes[lift.key])).length,
-    [oneRepMaxes],
-  );
-
-  const allLiftsConfigured = configuredLifts === lifts.length;
-  const savedLifts = lifts.filter((lift) => Number(trainingMaxByLift[lift.key]?.oneRepMax) > 0).length;
-  const allLiftsSaved = savedLifts === lifts.length;
-  const hasGeneratedProgram = Boolean(dashboardData?.nextWorkout || dashboardData?.lastWorkout);
-  const targetWeek = dashboardData?.currentWeek || 1;
-  const nextWorkout = dashboardData?.nextWorkout;
-  const user = dashboardData?.user;
-
-  const handleApiError = async (err, fallbackMessage) => {
-    if (err.response?.status === 401) {
-      await logout();
-      return 'Your session expired. Please log in again.';
-    }
-
-    return err.response?.data?.message || fallbackMessage;
-  };
-
   const loadDashboard = async () => {
-    setLoading(true);
     setError('');
-
     try {
-      const response = await dashboardService.getDashboard();
-      const data = response.data;
-      const loadedTrainingMaxes = data.currentTrainingMaxes || data.trainingMaxes || [];
-
-      setDashboardData(data);
-      setTrainingMaxes(loadedTrainingMaxes);
-      setOneRepMaxes(
-        lifts.reduce((values, lift) => {
-          const existing = loadedTrainingMaxes.find((trainingMax) => trainingMax.liftName === lift.key);
-          values[lift.key] = existing?.oneRepMax ?? '';
-          return values;
-        }, {}),
-      );
+      const [response, programResponse] = await Promise.all([
+        dashboardService.getDashboard(),
+        trainingMaxService.getProgramWeeks(),
+      ]);
+      setDashboard(response.data);
+      setWeeks(programResponse.data || []);
     } catch (err) {
-      setError(await handleApiError(err, 'Unable to load dashboard data.'));
+      if (err.response?.status === 401) await logout();
+      else setError(err.response?.data?.message || 'Unable to load your training. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
+  useEffect(() => { loadDashboard(); }, []);
   useEffect(() => {
     if (!realtime) return undefined;
-
-    return realtime.subscribe(['workout.updated', 'workout.completed', 'progress.updated'], () => {
-      loadDashboard();
-    });
+    return realtime.subscribe(['workout.updated', 'workout.completed', 'progress.updated'], loadDashboard);
   }, [realtime]);
 
-  const handleOneRepMaxChange = (liftName, value) => {
-    setOneRepMaxes((current) => ({
-      ...current,
-      [liftName]: value,
-    }));
-  };
-
-  const saveOneRepMaxes = async (event) => {
-    event.preventDefault();
-    setError('');
-    setSuccess('');
-
-    const enteredLifts = lifts.filter((lift) => oneRepMaxes[lift.key] !== '');
-
-    if (enteredLifts.length === 0) {
-      setError('Enter at least one 1RM value before saving.');
-      return;
-    }
-
-    if (enteredLifts.some((lift) => !hasPositiveNumber(oneRepMaxes[lift.key]))) {
-      setError('1RM values must be greater than 0.');
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      await Promise.all(
-        enteredLifts.map((lift) => {
-          const existing = trainingMaxByLift[lift.key];
-          const payload = {
-            liftName: lift.key,
-            oneRepMax: numberOrZero(oneRepMaxes[lift.key]),
-          };
-
-          return existing
-            ? trainingMaxService.updateTrainingMax(existing._id, payload)
-            : trainingMaxService.createTrainingMax(payload);
-        }),
-      );
-
-      setSuccess('One-rep maxes saved. Training maxes are ready for your week.');
-      await loadDashboard();
-    } catch (err) {
-      setError(await handleApiError(err, 'Unable to save one-rep maxes.'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const generateProgram = async () => {
-    setError('');
-    setSuccess('');
-
-    if (!allLiftsSaved) {
-      setError('Save all four 1RM values before generating your week.');
-      return;
-    }
-
-    setGeneratingProgram(true);
-
-    try {
-      const response = await trainingMaxService.generateProgram({ week: Number(targetWeek) });
-      const workoutsGenerated = response.data?.workouts?.length || response.data?.programWeek?.workouts?.length || 4;
-
-      setSuccess(`Week ${targetWeek} generated successfully.`);
-      await loadDashboard();
-      navigate('/strength-program', {
-        state: {
-          generatedWeek: Number(targetWeek),
-          workoutsGenerated,
-        },
-      });
-    } catch (err) {
-      setError(await handleApiError(err, 'Unable to generate program.'));
-    } finally {
-      setGeneratingProgram(false);
-    }
-  };
-
   const seedDemoData = async () => {
+    setSeeding(true);
     setError('');
     setSuccess('');
-    setSeedingDemo(true);
-
     try {
       const response = await demoService.seedDemoData();
       setSuccess(response.data?.message || 'Demo data created for this account.');
       await loadDashboard();
     } catch (err) {
-      setError(await handleApiError(err, 'Unable to create demo data.'));
+      if (err.response?.status === 401) await logout();
+      else setError(err.response?.data?.message || 'Unable to create demo data.');
     } finally {
-      setSeedingDemo(false);
+      setSeeding(false);
     }
   };
 
-  if (loading) {
-    return (
-      <section className="dashboard-shell">
-        <div className="dashboard-loader" aria-label="Loading dashboard">
-          <div />
-          <div />
-          <div />
-        </div>
-      </section>
-    );
-  }
+  const trainingMaxes = dashboard?.currentTrainingMaxes || dashboard?.trainingMaxes || [];
+  const strengthReady = ['squat', 'bench', 'deadlift', 'overhead_press'].every((lift) =>
+    trainingMaxes.some((entry) => entry.liftName === lift && Number(entry.oneRepMax) > 0));
+  const generatedWeeks = weeks.filter((week) => week.workouts?.length > 0);
+  const currentWeek = [...generatedWeeks].sort((a, b) => Number(b.weekNumber || b.week) - Number(a.weekNumber || a.week))[0];
+  const nextWorkout = currentWeek?.workouts?.find((workout) => workout.status === 'planned') || dashboard?.nextWorkout;
+  const lastWorkout = dashboard?.lastWorkout;
+  const steps = [
+    { label: 'Set your strength', copy: 'Enter your four one-rep maxes in Program.', done: strengthReady },
+    { label: 'Generate your program', copy: 'Create your first four-day week from those numbers.', done: false },
+    { label: 'Start training', copy: 'Open a planned session in Train and record your sets.', done: false },
+  ];
 
   return (
-    <section className="dashboard-shell">
-      <header className="dashboard-hero">
-        <div>
-          <p className="dashboard-eyebrow">Training dashboard</p>
-          <h1 className="dashboard-title">
-            Welcome{user?.firstName ? `, ${user.firstName}` : ''}
-          </h1>
-          <p className="dashboard-lede">
-            Your strength program starts here. Enter your current one-rep maxes, generate your week, then follow the plan inside Strength Program.
-          </p>
-        </div>
-
-        {import.meta.env.DEV && (
-          <button
-            type="button"
-            onClick={seedDemoData}
-            disabled={seedingDemo}
-            className="btn-secondary"
-          >
-            {seedingDemo ? 'Creating demo data...' : 'Seed Demo Data'}
-          </button>
-        )}
+    <section className="page-stack">
+      <header className="page-header">
+        <p className="eyebrow">Home</p>
+        <h1 className="page-title">Welcome{user?.firstName ? `, ${user.firstName}` : ' back'}.</h1>
+        <p className="page-copy">Your next step, without the noise.</p>
       </header>
 
-      {error && (
-        <p role="alert" className="dashboard-alert dashboard-alert-error">
-          {error}
-        </p>
-      )}
-      {success && (
-        <p role="status" className="dashboard-alert dashboard-alert-success">
-          {success}
-        </p>
-      )}
+      {error && <div role="alert" className="status-error">{error} <button type="button" onClick={loadDashboard} className="ml-2 underline">Retry</button></div>}
+      {success && <p role="status" className="status-success">{success}</p>}
 
-      {hasGeneratedProgram ? (
-        <section className="dashboard-program-summary" aria-labelledby="program-summary-title">
-          <div>
-            <p className="dashboard-step-label">Your program</p>
-            <h2 id="program-summary-title" className="dashboard-section-title">
-              Week {targetWeek}
-            </h2>
-            <p className="dashboard-muted">4 workouts generated from your current training maxes.</p>
-          </div>
-
-          <div className="dashboard-next-workout">
-            <p className="dashboard-small-label">Next workout</p>
-            <p className="dashboard-next-title">{nextWorkout?.title || 'Open your plan to continue'}</p>
-            <p className="dashboard-muted">{formatDate(nextWorkout?.date)}</p>
-          </div>
-
-          <Link to="/strength-program" className="btn-secondary">
-            Continue Strength Program
-          </Link>
-        </section>
-      ) : (
-        <p className="dashboard-start-note">Start by entering your current one-rep maxes.</p>
-      )}
-
-      <form onSubmit={saveOneRepMaxes} className="dashboard-step" aria-labelledby="strength-setup-title">
-        <div className="dashboard-step-heading">
-          <div>
-            <p className="dashboard-step-label">01 / Set your strength</p>
-            <h2 id="strength-setup-title" className="dashboard-section-title">
-              Current one-rep maxes
-            </h2>
-          </div>
-          <span className="dashboard-progress-pill">{configuredLifts} / 4 lifts configured</span>
-        </div>
-
-        <div className="dashboard-lift-grid">
-          {lifts.map((lift) => (
-            <label key={lift.key} className="dashboard-lift-field">
-              <span>{lift.label}</span>
-              <div>
-                <input
-                  type="number"
-                  min="0"
-                  inputMode="decimal"
-                  value={oneRepMaxes[lift.key]}
-                  onChange={(event) => handleOneRepMaxChange(lift.key, event.target.value)}
-                  placeholder="0"
-                />
-                <span aria-hidden="true">lb</span>
+      {loading ? (
+        <div className="dashboard-loader" role="status" aria-label="Loading your training"><div /><div /><span className="sr-only">Loading your training...</span></div>
+      ) : dashboard && (
+        <>
+          {currentWeek ? (
+            <section className="space-y-6" aria-labelledby="next-training-heading">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-stone-500">
+                <p>Current program / Week {currentWeek.weekNumber || currentWeek.week} of 4</p>
+                <p>{currentWeek.daysCompleted || 0} of 4 days completed</p>
               </div>
-              <small>
-                Training max: {trainingMaxByLift[lift.key]?.trainingMax || 0} lb
-              </small>
-            </label>
-          ))}
-        </div>
+              <div className="border-y border-[#D2CFC7] py-8">
+                <p className="eyebrow">{nextWorkout ? 'Next workout' : 'Your program'}</p>
+                <h2 id="next-training-heading" className="mt-3 text-2xl font-semibold sm:text-3xl">
+                  {nextWorkout?.title || (currentWeek.status === 'completed' ? 'Week complete. Ready for your next step.' : 'Continue your training week.')}
+                </h2>
+                <p className="mt-3 text-stone-500">
+                  {nextWorkout ? formatDate(nextWorkout.date) : 'Open Program to review your week and prepare what comes next.'}
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link to={appPaths.program} className="btn-primary">Continue Program</Link>
+                  {nextWorkout && <Link to={appPaths.train} state={{ plannedWorkoutId: nextWorkout._id }} className="btn-secondary">Start Workout</Link>}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold">
+                <Link to={appPaths.program} className="underline underline-offset-4">Update strength numbers</Link>
+                <Link to={appPaths.calendar} className="underline underline-offset-4">View calendar</Link>
+              </div>
+            </section>
+          ) : (
+            <section aria-labelledby="getting-started-heading">
+              <h2 id="getting-started-heading" className="section-title">Build your first training week</h2>
+              <p className="section-copy">Start with your strength numbers. Your plan and workout log stay connected.</p>
+              <ol className="mt-6 divide-y divide-[#D2CFC7] border-y border-[#D2CFC7]">
+                {steps.map((step, index) => (
+                  <li key={step.label} className="flex items-start gap-5 py-5">
+                    <span className="pt-1 text-sm tabular-nums text-stone-500">0{index + 1}</span>
+                    <div>
+                      <h3 className="font-semibold">{step.label}{step.done && <span className="ml-3 text-xs font-normal text-stone-500">Complete</span>}</h3>
+                      <p className="mt-1 text-sm text-stone-500">{step.copy}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <Link to={appPaths.program} className="btn-primary">{strengthReady ? 'Generate your program' : 'Set your strength'}</Link>
+                <Link to={appPaths.templates} className="text-sm font-semibold underline underline-offset-4">Prefer a custom workout?</Link>
+              </div>
+            </section>
+          )}
 
-        <div className="dashboard-actions">
-          <button type="submit" disabled={saving} className="btn-secondary">
-            {saving ? 'Saving...' : 'Save 1RMs'}
-          </button>
-          <p>Training maxes are calculated and stored after saving.</p>
-        </div>
-      </form>
-
-      <section className="dashboard-step" aria-labelledby="generate-week-title">
-        <div className="dashboard-step-heading">
-          <div>
-            <h2 id="generate-week-title" className="dashboard-step-label">02 / Generate your week</h2>
-          </div>
-          <span className={allLiftsSaved ? 'dashboard-ready-text' : 'dashboard-muted'}>
-            {allLiftsSaved
-              ? 'Your training maxes are ready.'
-              : allLiftsConfigured
-                ? 'Save your 1RMs first.'
-                : 'Complete all four 1RM values first.'}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={generateProgram}
-          disabled={generatingProgram || saving || !allLiftsSaved}
-          className="btn-primary mt-6"
-        >
-          {generatingProgram ? `Generating Week ${targetWeek}...` : `Generate Week ${targetWeek}`}
-        </button>
-      </section>
-
-      <section className="dashboard-step" aria-labelledby="start-training-title">
-        <div className="dashboard-step-heading">
-          <div>
-            <p className="dashboard-step-label">03 / Start training</p>
-            <h2 id="start-training-title" className="dashboard-section-title">
-              Follow your plan
-            </h2>
-          </div>
-          <Link to="/strength-program" className="dashboard-text-link">
-            Open Strength Program
-          </Link>
-        </div>
-      </section>
-
-      <section className="dashboard-guide" aria-labelledby="explore-title">
-        <div>
-          <p className="dashboard-step-label">Explore GetJackedCoach</p>
-          <h2 id="explore-title" className="dashboard-section-title">
-            Dedicated pages for everything else
-          </h2>
-        </div>
-
-        <div className="dashboard-guide-list">
-          {featureGuide.map((item) => (
-            <Link key={item.to} to={item.to} className="dashboard-guide-row">
-              <span>
-                <strong>{item.title}</strong>
-                <small>{item.description}</small>
-              </span>
-              <span aria-hidden="true">-&gt;</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+          {lastWorkout && (
+            <section className="border-t border-[#D2CFC7] pt-6">
+              <h2 className="eyebrow">Last completed session</h2>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+                <div><p className="font-semibold">{lastWorkout.title}</p><p className="mt-1 text-sm text-stone-500">{formatDate(lastWorkout.date)}</p></div>
+                <Link to={appPaths.history} className="btn-secondary">View history</Link>
+              </div>
+            </section>
+          )}
+        </>
+      )}
+      {import.meta.env.DEV && (
+        <details className="border-t border-[#D2CFC7] pt-5 text-sm text-stone-500">
+          <summary className="w-fit cursor-pointer">Development tools</summary>
+          <button type="button" disabled={seeding} onClick={seedDemoData} className="btn-secondary mt-4">{seeding ? 'Creating...' : 'Create Demo Data'}</button>
+        </details>
+      )}
     </section>
   );
 }

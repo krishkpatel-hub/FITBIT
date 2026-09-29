@@ -34,7 +34,7 @@ function MainLayout() {
         className={`relative z-10 mx-auto w-full flex-1 ${
           isPublicLandingPage
             ? 'max-w-none px-0 py-0'
-            : `px-4 py-8 sm:px-6 lg:px-8 ${isAuthenticated && pathname === '/dashboard' ? 'max-w-6xl' : 'max-w-7xl'}`
+            : `px-4 py-8 sm:px-6 lg:px-8 ${isAuthenticated && pathname === '/app' ? 'max-w-6xl' : 'max-w-7xl'}`
         }`}
       >
         <Outlet />

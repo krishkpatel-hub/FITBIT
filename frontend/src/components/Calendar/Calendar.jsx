@@ -43,7 +43,7 @@ function Calendar({ monthDate, selectedDate, workoutsByDate = {}, onDateSelect, 
   };
 
   return (
-    <section className="quiet-card" aria-labelledby="calendar-heading">
+    <section className="quiet-card min-w-0" aria-labelledby="calendar-heading">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="eyebrow">Training Calendar</p>
@@ -82,11 +82,14 @@ function Calendar({ monthDate, selectedDate, workoutsByDate = {}, onDateSelect, 
               key={dateKey}
               type="button"
               onClick={() => onDateSelect(dateKey)}
-              className={`min-h-24 border-b border-stone-900 p-2 text-left transition-colors hover:bg-stone-900/40 focus:outline-none focus:ring-1 focus:ring-amber-300/40 ${
+              className={`min-h-24 min-w-0 border-b border-stone-900 px-1 py-2 text-left transition-colors hover:bg-stone-900/40 focus:outline-none focus:ring-1 focus:ring-amber-300/40 sm:px-2 ${
                 selected ? 'bg-stone-900/70' : ''
               }`}
               aria-pressed={selected}
-              aria-label={`${dateKey}, ${dayWorkouts.length} workouts`}
+              aria-label={`${dateKey}, ${dayWorkouts.length} workouts${statusOrder.map((status) => {
+                const count = dayWorkouts.filter((workout) => workout.status === status).length;
+                return count ? `, ${count} ${status}` : '';
+              }).join('')}`}
             >
               <span className="text-sm font-medium text-stone-100">{day.getDate()}</span>
               {dayWorkouts.length > 0 && (
@@ -95,8 +98,9 @@ function Calendar({ monthDate, selectedDate, workoutsByDate = {}, onDateSelect, 
                     const count = dayWorkouts.filter((workout) => workout.status === status).length;
 
                     return count > 0 ? (
-                      <div key={status} className="flex items-center justify-between gap-2 text-[11px] capitalize text-stone-500">
-                        <span>{status}</span>
+                      <div key={status} className="flex min-w-0 flex-col items-start text-[11px] capitalize text-stone-500 sm:flex-row sm:items-center sm:justify-between sm:gap-1">
+                        <span className="hidden min-w-0 truncate sm:block" title={status}>{status}</span>
+                        <span className="sm:hidden">{{ planned: 'Plan', completed: 'Done', skipped: 'Skip' }[status]}</span>
                         <span className="text-stone-300">{count}</span>
                       </div>
                     ) : null;

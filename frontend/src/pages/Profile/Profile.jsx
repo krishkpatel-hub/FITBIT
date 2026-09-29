@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { trainingMaxService } from '../../services/trainingMaxService';
-import { workoutService } from '../../services/workoutService';
 
 const profileFields = {
   weight: '',
@@ -13,12 +11,6 @@ const profileFields = {
 
 const numberFields = new Set(['weight', 'age']);
 const poundsPerKilogram = 2.2046226218;
-const liftLabels = {
-  squat: 'Squat',
-  bench: 'Bench',
-  deadlift: 'Deadlift',
-  overhead_press: 'Overhead Press',
-};
 
 const splitHeight = (totalInches) => {
   const height = Number(totalInches || 0);
@@ -74,12 +66,6 @@ function Profile() {
   const [formData, setFormData] = useState(profileFields);
   const [heightFields, setHeightFields] = useState({ feet: '', inches: '' });
   const [weightUnit, setWeightUnit] = useState('lb');
-  const [summary, setSummary] = useState({
-    trainingMaxes: [],
-    currentWeek: 1,
-    workoutsCompleted: 0,
-  });
-  const [summaryLoading, setSummaryLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -98,37 +84,6 @@ function Profile() {
 
     setHeightFields(splitHeight(user.height));
   }, [user]);
-
-  useEffect(() => {
-    const loadStrengthSummary = async () => {
-      setSummaryLoading(true);
-
-      try {
-        const [trainingMaxResponse, workoutResponse] = await Promise.all([
-          trainingMaxService.getTrainingMaxes(),
-          workoutService.getWorkouts(),
-        ]);
-        const trainingMaxes = trainingMaxResponse.data || [];
-        const workouts = workoutResponse.data || [];
-
-        setSummary({
-          trainingMaxes,
-          currentWeek: trainingMaxes[0]?.currentWeek || 1,
-          workoutsCompleted: workouts.filter((workout) => workout.status === 'completed').length,
-        });
-      } catch (err) {
-        setSummary({
-          trainingMaxes: [],
-          currentWeek: 1,
-          workoutsCompleted: 0,
-        });
-      } finally {
-        setSummaryLoading(false);
-      }
-    };
-
-    loadStrengthSummary();
-  }, []);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -244,28 +199,28 @@ function Profile() {
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <div>
             <p className="text-sm font-medium text-stone-300">First name</p>
-            <p className="mt-1 rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
+            <p className="mt-1 break-words rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
               {user?.firstName || 'Not set'}
             </p>
           </div>
 
           <div>
             <p className="text-sm font-medium text-stone-300">Last name</p>
-            <p className="mt-1 rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
+            <p className="mt-1 break-words rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
               {user?.lastName || 'Not set'}
             </p>
           </div>
 
           <div>
             <p className="text-sm font-medium text-stone-300">Username</p>
-            <p className="mt-1 rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
+            <p className="mt-1 break-words rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
               {user?.username || 'Not set'}
             </p>
           </div>
 
           <div>
             <p className="text-sm font-medium text-stone-300">Email</p>
-            <p className="mt-1 rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
+            <p className="mt-1 break-words rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
               {user?.email || 'Not set'}
             </p>
           </div>
@@ -343,6 +298,7 @@ function Profile() {
                 <input
                   type="number"
                   name="weight"
+                  aria-label="Weight"
                   min="0"
                   step="0.1"
                   placeholder="175"
@@ -411,34 +367,6 @@ function Profile() {
         </button>
       </form>
 
-      <section className="quiet-card">
-        <h2 className="section-title">Strength Summary</h2>
-
-        {summaryLoading ? (
-          <p className="empty-state mt-5">Loading strength summary...</p>
-        ) : (
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {Object.entries(liftLabels).map(([liftName, label]) => {
-              const trainingMax = summary.trainingMaxes.find((item) => item.liftName === liftName);
-
-              return (
-                <div key={liftName} className="metric-panel">
-                  <p className="text-sm text-stone-500">{label} TM</p>
-                  <p className="mt-2 text-2xl font-semibold text-stone-50">{trainingMax?.trainingMax || 0} lb</p>
-                </div>
-              );
-            })}
-            <div className="metric-panel">
-              <p className="text-sm text-stone-500">Current program week</p>
-              <p className="mt-2 text-2xl font-semibold text-stone-50">{summary.currentWeek}</p>
-            </div>
-            <div className="metric-panel">
-              <p className="text-sm text-stone-500">Workouts completed</p>
-              <p className="mt-2 text-2xl font-semibold text-stone-50">{summary.workoutsCompleted}</p>
-            </div>
-          </div>
-        )}
-      </section>
     </section>
   );
 }
