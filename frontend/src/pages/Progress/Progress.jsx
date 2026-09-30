@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useRealtime } from '../../context/RealtimeContext.jsx';
@@ -6,12 +6,13 @@ import { prService } from '../../services/prService';
 import { progressService } from '../../services/progressService';
 import { workoutService } from '../../services/workoutService';
 import { appPaths, progressSectionPaths } from '../../utils/navigation';
+import TrainStart from '../../components/TrainStart/TrainStart.jsx';
+import { createWorkoutDraft, WORKOUT_DRAFT_STORAGE_KEY } from '../../utils/templateWorkflow';
 
 const today = () => new Date().toISOString().slice(0, 10);
-const WORKOUT_DRAFT_STORAGE_KEY = 'getjackedcoach.workoutDraft';
 
 const sectionHeadings = {
-  'log-workout': ['Train', 'Start Workout', 'Open a planned session or build your own workout.'],
+  'log-workout': ['Train', 'Start Workout', 'Continue a planned session, use a template, or start fresh.'],
   'log-pr': ['Progress', 'Personal Records', 'Log a PR when you hit a new best. Review your records below.'],
   'training-history': ['Progress', 'Training History', 'Your completed sessions, exercises, and sets in one place.'],
   'body-metrics': ['Progress', 'Body Metrics', 'Track body measurements over time. Add a measurement below to begin.'],
@@ -143,6 +144,16 @@ function Progress({ activeSection = 'training-history' }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(location.state?.success || '');
+  const [workoutEditorOpen, setWorkoutEditorOpen] = useState(false);
+  const [editingExercise, setEditingExercise] = useState(null);
+  const workoutPendingRef = useRef(false);
+  const pageHeadingRef = useRef(null);
+  const errorRef = useRef(null);
+
+  useEffect(() => {
+    if (activeSection === 'log-workout' || location.state?.success) pageHeadingRef.current?.focus();
+  }, [workoutEditorOpen, activeSection]);
+  useEffect(() => { if (error && activeSection === 'log-workout') errorRef.current?.focus(); }, [error, activeSection]);
 
   useEffect(() => {
     setError('');
@@ -156,16 +167,11 @@ function Progress({ activeSection = 'training-history' }) {
       return stateDraft;
     }
 
-    const storedDraft = window.sessionStorage.getItem(WORKOUT_DRAFT_STORAGE_KEY);
-
-    if (!storedDraft) {
-      return null;
-    }
-
     try {
-      return JSON.parse(storedDraft);
+      const storedDraft = window.sessionStorage.getItem(WORKOUT_DRAFT_STORAGE_KEY);
+      return storedDraft ? JSON.parse(storedDraft) : null;
     } catch {
-      window.sessionStorage.removeItem(WORKOUT_DRAFT_STORAGE_KEY);
+      try { window.sessionStorage.removeItem(WORKOUT_DRAFT_STORAGE_KEY); } catch { /* Storage may be disabled. */ }
       return null;
     }
   };
@@ -214,10 +220,14 @@ function Progress({ activeSection = 'training-history' }) {
 
   useEffect(() => {
     if (activeSection !== 'log-workout') return;
+    // An explicit planned-session link takes precedence over a recovery draft.
+    if (location.state?.plannedWorkoutId) return;
     // A history edit carries the existing record, not a new template draft.
     if (location.state?.editingWorkout) {
       setWorkoutForm(toWorkoutForm(location.state.editingWorkout));
       setEditingWorkoutId(location.state.editingWorkout._id);
+      setWorkoutEditorOpen(true);
+      setEditingExercise(null);
       navigate(location.pathname, { replace: true, state: null });
       return;
     }
@@ -236,9 +246,11 @@ function Progress({ activeSection = 'training-history' }) {
       })),
     }));
     setEditingWorkoutId(null);
+    setWorkoutEditorOpen(true);
+    setEditingExercise(null);
     setError('');
     setSuccess(`${workoutDraft.templateName || workoutDraft.title} loaded. Add today's sets, reps, and weight.`);
-    window.sessionStorage.removeItem(WORKOUT_DRAFT_STORAGE_KEY);
+    try { window.sessionStorage.removeItem(WORKOUT_DRAFT_STORAGE_KEY); } catch { /* Navigation state still works without storage. */ }
     navigate(location.pathname, { replace: true, state: null });
   }, [activeSection, location.state?.workoutDraft, location.state?.editingWorkout]);
 
@@ -249,6 +261,8 @@ function Progress({ activeSection = 'training-history' }) {
     if (workout) {
       setWorkoutForm(toWorkoutForm(workout));
       setEditingWorkoutId(workout._id);
+      setWorkoutEditorOpen(true);
+      setEditingExercise(null);
     }
     navigate(location.pathname, { replace: true, state: null });
   }, [activeSection, loading, location.state?.plannedWorkoutId, workouts]);
@@ -270,21 +284,32 @@ function Progress({ activeSection = 'training-history' }) {
   const resetWorkoutForm = () => {
     setWorkoutForm({ ...emptyWorkoutForm, date: today(), exercises: [] });
     setEditingWorkoutId(null);
+    setEditingExercise(null);
   };
 
-  const handlePlannedWorkoutSelect = (event) => {
-    const workoutId = event.target.value;
-    const workout = workouts.find((item) => item._id === workoutId);
-
-    if (!workout) {
-      resetWorkoutForm();
-      return;
-    }
-
+  const startPlannedWorkout = (workout) => {
     setWorkoutForm(toWorkoutForm(workout));
     setEditingWorkoutId(workout._id);
+    setWorkoutEditorOpen(true);
+    setEditingExercise(null);
     setError('');
     setSuccess('');
+  };
+
+  const startBlankWorkout = () => {
+    resetWorkoutForm();
+    setWorkoutEditorOpen(true);
+    setError('');
+    setSuccess('');
+  };
+
+  const startTemplateWorkout = (template) => {
+    setWorkoutForm(toWorkoutForm(createWorkoutDraft(template)));
+    setEditingWorkoutId(null);
+    setWorkoutEditorOpen(true);
+    setEditingExercise(null);
+    setError('');
+    setSuccess(`${template.name} loaded. Add today's sets, reps, and weight.`);
   };
 
   const updateWorkoutField = (field, value) => {
@@ -292,6 +317,7 @@ function Progress({ activeSection = 'training-history' }) {
   };
 
   const addWorkoutExercise = () => {
+    setEditingExercise(workoutForm.exercises.length);
     setWorkoutForm((current) => ({
       ...current,
       exercises: [...current.exercises, createExercise()],
@@ -308,6 +334,7 @@ function Progress({ activeSection = 'training-history' }) {
   };
 
   const removeWorkoutExercise = (exerciseIndex) => {
+    setEditingExercise(null);
     setWorkoutForm((current) => ({
       ...current,
       exercises: current.exercises.filter((_, index) => index !== exerciseIndex),
@@ -357,6 +384,7 @@ function Progress({ activeSection = 'training-history' }) {
 
   const saveWorkout = async (event) => {
     event.preventDefault();
+    if (workoutPendingRef.current) return;
     setError('');
     setSuccess('');
 
@@ -370,6 +398,7 @@ function Progress({ activeSection = 'training-history' }) {
       return;
     }
 
+    workoutPendingRef.current = true;
     setSaving(true);
 
     const payload = {
@@ -405,12 +434,14 @@ function Progress({ activeSection = 'training-history' }) {
       }
 
       resetWorkoutForm();
+      setWorkoutEditorOpen(false);
       setSuccess('Workout saved to Training History.');
       await loadProgressData();
       setSection('training-history', { success: 'Workout saved to Training History.' });
     } catch (err) {
       setError(await handleApiError(err, 'Unable to save workout.'));
     } finally {
+      workoutPendingRef.current = false;
       setSaving(false);
     }
   };
@@ -543,11 +574,11 @@ function Progress({ activeSection = 'training-history' }) {
     <section className="page-stack">
       <header className="border-b border-stone-800 pb-8">
         <p className="eyebrow">{eyebrow}</p>
-        <h1 className="page-title">{heading}</h1>
-        <p className="page-copy">{description}</p>
+        <h1 ref={pageHeadingRef} tabIndex={-1} className="page-title">{activeSection === 'log-workout' && workoutEditorOpen ? 'Log Workout' : heading}</h1>
+        <p className="page-copy">{activeSection === 'log-workout' && workoutEditorOpen ? 'Record this session. Changes here do not change your saved templates.' : description}</p>
       </header>
 
-      {error && <p role="alert" className="status-error">{error}</p>}
+      {error && <p ref={errorRef} tabIndex={-1} role="alert" className="status-error">{error}</p>}
       {success && <p role="status" className="status-success">{success}</p>}
 
       {loading ? (
@@ -558,39 +589,25 @@ function Progress({ activeSection = 'training-history' }) {
         </div>
       ) : (
         <>
-          {activeSection === 'log-workout' && (
-            <section className="quiet-card">
+          {activeSection === 'log-workout' && !workoutEditorOpen && (
+            <TrainStart plannedWorkouts={plannedWorkouts} onStartPlanned={startPlannedWorkout} onStartBlank={startBlankWorkout} onStartTemplate={startTemplateWorkout} />
+          )}
+
+          {activeSection === 'log-workout' && workoutEditorOpen && (
+            <section className="min-w-0" aria-label="Workout session">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="section-title">Log Workout</h2>
-                  <p className="section-copy">Record today's exercises, sets, reps, and weight.</p>
+                  <h2 className="section-title">{editingWorkoutId ? 'Selected session' : 'New session'}</h2>
+                  <p className="section-copy">Save when your workout is complete.</p>
                 </div>
-                {editingWorkoutId && (
-                  <button type="button" onClick={resetWorkoutForm} className="btn-secondary px-3">
-                    Clear Selection
-                  </button>
-                )}
+                <button type="button" disabled={saving} onClick={() => {
+                  if (!window.confirm('Discard unsaved session changes and return to Train? Saved workouts and templates will not be changed.')) return;
+                  resetWorkoutForm(); setWorkoutEditorOpen(false); setError(''); setSuccess('');
+                }} className="btn-secondary min-h-11">Cancel Workout</button>
               </div>
 
-              <label className="mt-6 block">
-                <span className="text-sm font-medium text-stone-300">Existing planned workout</span>
-                <select value={editingWorkoutId || ''} onChange={handlePlannedWorkoutSelect} className="form-field">
-                  <option value="">Create a workout manually or select a planned workout</option>
-                  {plannedWorkouts.map((workout) => (
-                    <option key={workout._id} value={workout._id}>
-                      {workout.title} - {formatDate(workout.date)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {plannedWorkouts.length === 0 && (
-                <p className="empty-state mt-4">
-                  No planned sessions yet. <Link to={appPaths.templates} className="font-semibold underline">Choose a template</Link>, <Link to={appPaths.program} className="font-semibold underline">generate a program</Link>, or add your own exercises below.
-                </p>
-              )}
-
               <form onSubmit={saveWorkout} className="mt-6 space-y-6">
+                <fieldset disabled={saving} className="min-w-0 space-y-6">
                 <h3 className="eyebrow">Workout Details</h3>
                 <div className="grid gap-4 md:grid-cols-4">
                   <label className="block md:col-span-2">
@@ -625,60 +642,67 @@ function Progress({ activeSection = 'training-history' }) {
                     {workoutForm.exercises.map((exercise, exerciseIndex) => (
                       <article
                         key={`workout-exercise-${exerciseIndex}`}
+                        aria-labelledby={`workout-exercise-${exerciseIndex}-heading`}
                         className="rounded-lg border border-[#D2CFC7] bg-[#FAF9F6] p-4 sm:p-5"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#D2CFC7] pb-4">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1 basis-56">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#62675f]">
                               Exercise {exerciseIndex + 1}
                             </p>
-                            <h3 className="mt-2 break-words text-2xl font-semibold text-[#151714]">
+                            <h3 id={`workout-exercise-${exerciseIndex}-heading`} className="mt-2 break-words text-xl font-semibold text-[#151714]">
                               {exercise.exerciseName || 'Untitled Exercise'}
                             </h3>
-                            <p className="mt-1 text-sm text-[#747872]">
+                            <p className="mt-1 text-sm text-[#62675f]">
                               {exercise.muscleGroup || 'Muscle group not set'}
                             </p>
+                            {exercise.notes && editingExercise !== exerciseIndex && <p className="mt-2 break-words text-sm text-[#62675f]">{exercise.notes}</p>}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeWorkoutExercise(exerciseIndex)}
-                            className="btn-danger"
-                          >
-                            Remove Exercise
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            <button type="button" className="btn-secondary min-h-11 px-3" aria-expanded={editingExercise === exerciseIndex}
+                              aria-controls={`workout-exercise-${exerciseIndex}-details`}
+                              aria-label={`${editingExercise === exerciseIndex ? 'Finish editing' : 'Edit'} ${exercise.exerciseName || 'new exercise'} details`}
+                              onClick={() => setEditingExercise(editingExercise === exerciseIndex ? null : exerciseIndex)}>
+                              {editingExercise === exerciseIndex ? 'Done' : 'Edit details'}
+                            </button>
+                            <button type="button" onClick={() => removeWorkoutExercise(exerciseIndex)} className="min-h-11 px-3 text-sm text-[#62675f] underline underline-offset-4"
+                              aria-label={`Remove ${exercise.exerciseName || 'new exercise'} from workout`}>Remove</button>
+                          </div>
                         </div>
 
-                        <div className="mt-5 grid gap-4 md:grid-cols-2">
-                          <label className="block">
-                            <span className="text-sm font-medium text-stone-300">Exercise name</span>
-                            <input value={exercise.exerciseName} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'exerciseName', event.target.value)} className="form-field" />
-                          </label>
-                          <label className="block">
-                            <span className="text-sm font-medium text-stone-300">Muscle group</span>
-                            <input value={exercise.muscleGroup} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'muscleGroup', event.target.value)} className="form-field" />
-                          </label>
-                        </div>
-
-                        <label className="mt-4 block">
-                          <span className="text-sm font-medium text-stone-300">Exercise notes</span>
-                          <textarea rows="2" value={exercise.notes} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'notes', event.target.value)} className="form-field" />
-                        </label>
+                        {editingExercise === exerciseIndex && (
+                          <div id={`workout-exercise-${exerciseIndex}-details`} className="mt-5 grid gap-4 md:grid-cols-2">
+                            <label className="block">
+                              <span className="text-sm font-medium text-stone-300">Exercise name</span>
+                              <input autoFocus value={exercise.exerciseName} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'exerciseName', event.target.value)} className="form-field" />
+                            </label>
+                            <label className="block">
+                              <span className="text-sm font-medium text-stone-300">Muscle group</span>
+                              <input value={exercise.muscleGroup} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'muscleGroup', event.target.value)} className="form-field" />
+                            </label>
+                            <label className="block md:col-span-2">
+                              <span className="text-sm font-medium text-stone-300">Exercise notes</span>
+                              <textarea rows="2" value={exercise.notes} onChange={(event) => updateWorkoutExercise(exerciseIndex, 'notes', event.target.value)} className="form-field" />
+                            </label>
+                          </div>
+                        )}
 
                         <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#D2CFC7] pt-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#747872]">Sets</p>
-                          <button type="button" onClick={() => addWorkoutSet(exerciseIndex)} className="btn-secondary px-3">
+                          <p className="text-sm font-semibold text-[#62675f]">Sets · {exercise.sets.length}</p>
+                          <button type="button" onClick={() => addWorkoutSet(exerciseIndex)} className="btn-secondary min-h-11 px-3" aria-label={`Add set to ${exercise.exerciseName || 'new exercise'}`}>
                             Add Set
                           </button>
                         </div>
 
                         {exercise.sets.length === 0 ? (
-                          <p className="mt-4 text-sm text-[#747872]">
+                          <p className="mt-4 text-sm text-[#62675f]">
                             No sets logged yet. Add sets for today's workout only.
                           </p>
                         ) : (
                           <div className="mt-4 divide-y divide-[#D2CFC7] border-y border-[#D2CFC7]">
                             {exercise.sets.map((set, setIndex) => (
-                              <div key={`workout-set-${setIndex}`} className="grid grid-cols-2 gap-3 py-4 md:grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)_80px_auto] md:items-end">
+                              <fieldset key={`workout-set-${setIndex}`} className="grid min-w-0 grid-cols-2 gap-3 py-4 md:grid-cols-[72px_minmax(0,1fr)_minmax(0,1fr)_100px_auto] md:items-end">
+                                <legend className="sr-only">{exercise.exerciseName || 'New exercise'} set {setIndex + 1}</legend>
                                 <div className="col-span-2 text-sm font-semibold text-[#4F534E] md:col-span-1">Set {setIndex + 1}</div>
                                 <label className="block">
                                   <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Reps</span>
@@ -688,26 +712,27 @@ function Progress({ activeSection = 'training-history' }) {
                                   <span className="text-xs font-medium uppercase tracking-[0.16em] text-stone-500">Weight</span>
                                   <div className="flex items-center gap-2">
                                     <input type="number" min="0" value={set.weight} onChange={(event) => updateWorkoutSet(exerciseIndex, setIndex, 'weight', event.target.value)} className="form-field" />
-                                    <span className="mt-1 text-sm font-medium text-[#747872]">lb</span>
+                                    <span className="mt-1 text-sm font-medium text-[#62675f]">lb</span>
                                   </div>
                                 </label>
-                                <label className="flex items-center gap-2 text-sm text-stone-300">
+                                <label className="flex min-h-11 items-center gap-2 text-sm text-stone-300">
                                   <input
                                     type="checkbox"
                                     checked={set.isPlusSet}
                                     onChange={(event) => updateWorkoutSet(exerciseIndex, setIndex, 'isPlusSet', event.target.checked)}
-                                    className="h-4 w-4 rounded border-stone-700 bg-stone-950 accent-[#D4AF37]"
+                                    className="h-5 w-5 rounded accent-[#2f4f46]"
                                   />
-                                  Plus
+                                  Plus set
                                 </label>
                                 <button
                                   type="button"
                                   onClick={() => removeWorkoutSet(exerciseIndex, setIndex)}
-                                  className="btn-danger"
+                                  className="min-h-11 px-3 text-sm text-[#62675f] underline underline-offset-4"
+                                  aria-label={`Remove ${exercise.exerciseName || 'new exercise'} set ${setIndex + 1}`}
                                 >
                                   Remove
                                 </button>
-                              </div>
+                              </fieldset>
                             ))}
                           </div>
                         )}
@@ -716,9 +741,10 @@ function Progress({ activeSection = 'training-history' }) {
                   </div>
                 )}
 
-                <button type="submit" disabled={saving} className="btn-primary">
+                <button type="submit" disabled={saving} className="btn-primary min-h-11">
                   {saving ? 'Saving...' : 'Save Workout'}
                 </button>
+                </fieldset>
               </form>
             </section>
           )}

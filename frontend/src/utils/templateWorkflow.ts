@@ -99,9 +99,9 @@ export const starterTemplates: TemplateForm[] = [
 ];
 
 export const normalizeTemplatePayload = (template: TemplateForm) => ({
-  ...template,
   name: template.name.trim(),
   description: template.description || '',
+  category: template.category,
   exercises: template.exercises
     .filter((exercise) => exercise.exerciseName.trim())
     .map((exercise) => ({
@@ -111,6 +111,24 @@ export const normalizeTemplatePayload = (template: TemplateForm) => ({
       sets: [],
     })),
 });
+
+export const validateTemplate = (template: TemplateForm): string => {
+  if (!template.name.trim()) return 'Give your template a name.';
+  if (!template.exercises.length) return 'Add at least one exercise before reviewing your template.';
+  if (template.exercises.some((exercise) => !exercise.exerciseName.trim())) return 'Enter a name for each exercise, or remove the empty row.';
+  return '';
+};
+
+export const getTemplateMuscleGroups = (template: Partial<WorkoutTemplate>): string[] =>
+  [...new Set((template.exercises || []).map((exercise) => exercise.muscleGroup?.trim()).filter((group): group is string => Boolean(group)))];
+
+export const getRecentTemplates = (templates: WorkoutTemplate[], limit = 3): WorkoutTemplate[] => {
+  const updatedAt = (template: WorkoutTemplate) => {
+    const timestamp = Date.parse(template.updatedAt || template.createdAt || '');
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  };
+  return templates.filter((template) => !template.isDefault).sort((a, b) => updatedAt(b) - updatedAt(a)).slice(0, limit);
+};
 
 export const toTemplateForm = (template: Partial<WorkoutTemplate>): TemplateForm => ({
   name: template.name || '',

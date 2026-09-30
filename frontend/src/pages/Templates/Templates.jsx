@@ -5,10 +5,10 @@ import { templateService } from '../../services/templateService';
 import { appPaths } from '../../utils/navigation';
 import {
   createWorkoutDraft, emptyExercise, emptyTemplate, normalizeTemplatePayload,
-  starterTemplates, toTemplateForm, WORKOUT_DRAFT_STORAGE_KEY,
+  getTemplateMuscleGroups, starterTemplates, toTemplateForm, validateTemplate, WORKOUT_DRAFT_STORAGE_KEY,
 } from '../../utils/templateWorkflow';
 
-const stepNames = ['Template details', 'Exercises', 'Review'];
+const stepNames = ['Customize', 'Review'];
 
 function Templates() {
   const { logout } = useAuth();
@@ -25,6 +25,8 @@ function Templates() {
   const pendingRef = useRef(false);
   const headingRef = useRef(null);
   const startersRef = useRef(null);
+  const savedTemplatesRef = useRef(null);
+  const errorRef = useRef(null);
 
   const handleApiError = async (err, fallback) => {
     if (err.response?.status === 401) {
@@ -36,6 +38,7 @@ function Templates() {
 
   const loadTemplates = async () => {
     setLoading(true);
+    setError('');
     try {
       const response = await templateService.getTemplates();
       setTemplates(response.data || []);
@@ -48,6 +51,8 @@ function Templates() {
 
   useEffect(() => { loadTemplates(); }, []);
   useEffect(() => { if (step > 0) headingRef.current?.focus(); }, [step]);
+  useEffect(() => { if (step === 0 && success && !loading) savedTemplatesRef.current?.focus(); }, [step, success, loading]);
+  useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
   const chooseTemplate = (template, id = null) => {
     setFormData(toTemplateForm(template));
@@ -64,15 +69,8 @@ function Templates() {
     exercises: current.exercises.map((exercise, i) => i === index ? { ...exercise, [field]: value } : exercise),
   }));
 
-  const validate = () => {
-    if (!formData.name.trim()) return 'Give your template a name.';
-    if (step >= 2 && formData.exercises.length === 0) return 'Add at least one exercise before reviewing your template.';
-    if (step >= 2 && formData.exercises.some((exercise) => !exercise.exerciseName.trim())) return 'Enter a name for each exercise, or remove the empty row.';
-    return '';
-  };
-
   const nextStep = () => {
-    const message = validate();
+    const message = validateTemplate(formData);
     setError(message);
     if (!message) {
       setEditingExercise(null);
@@ -89,7 +87,7 @@ function Templates() {
 
   const saveTemplate = async (startAfterSaving = false) => {
     if (pendingRef.current) return;
-    const message = validate();
+    const message = validateTemplate(formData);
     setError(message);
     setSuccess('');
     if (message) return;
@@ -146,7 +144,7 @@ function Templates() {
         <p className="page-copy">Choose a starting routine or create your own.</p>
       </header>
 
-      {error && <p role="alert" className="status-error">{error}</p>}
+      {error && <div ref={errorRef} tabIndex={-1} role="alert" className="status-error"><p>{error}</p>{step === 0 && <button type="button" className="mt-2 min-h-11 font-semibold underline" onClick={loadTemplates}>Retry loading templates</button>}</div>}
       {success && <p role="status" className="status-success">{success}</p>}
 
       {step === 0 ? (
@@ -154,7 +152,7 @@ function Templates() {
           <section aria-labelledby="starter-heading">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 id="starter-heading" ref={startersRef} tabIndex={-1} className="section-title">Choose a starting routine</h2>
-              <button type="button" className="btn-secondary" onClick={() => chooseTemplate(emptyTemplate)}>Create from scratch</button>
+              <button type="button" className="btn-secondary min-h-11" onClick={() => chooseTemplate(emptyTemplate)}>Create from scratch</button>
             </div>
             <div className="mt-6 grid gap-x-8 sm:grid-cols-2">
               {[...starterTemplates, ...suppliedDefaults].map((template) => (
@@ -162,7 +160,8 @@ function Templates() {
                   className="flex items-center justify-between gap-4 border-t border-[#D2CFC7] py-5 text-left transition-colors hover:bg-[#E5E7DF]">
                   <span className="min-w-0">
                     <span className="block font-semibold">{template.name}</span>
-                    <span className="mt-1 block text-sm text-stone-500">{template.description}</span>
+                    <span className="mt-1 block text-sm text-[#62675f]">{template.description}</span>
+                    <span className="mt-2 block text-xs text-[#62675f]">{template.exercises.length} exercises</span>
                   </span>
                   <span aria-hidden="true" className="text-lg text-stone-500">&rarr;</span>
                 </button>
@@ -171,7 +170,7 @@ function Templates() {
           </section>
 
           <section aria-labelledby="saved-templates-heading" className="border-t border-[#D2CFC7] pt-8">
-            <h2 id="saved-templates-heading" className="section-title">Your Templates</h2>
+            <h2 id="saved-templates-heading" ref={savedTemplatesRef} tabIndex={-1} className="section-title">Your Templates</h2>
             {loading ? <p role="status" className="py-6 text-sm text-stone-500">Loading your templates...</p> : userTemplates.length === 0 ? (
               <div className="py-6">
                 <p className="font-semibold">No templates yet.</p>
@@ -181,15 +180,15 @@ function Templates() {
             ) : (
               <div className="mt-3 divide-y divide-[#D2CFC7]">
                 {userTemplates.map((template) => (
-                  <article key={template._id} className="flex flex-wrap items-center justify-between gap-5 py-6">
+                  <article key={template._id} aria-label={template.name} className="flex flex-wrap items-center justify-between gap-5 py-5">
                     <div className="min-w-0 flex-1 basis-64">
                       <h3 className="break-words font-semibold">{template.name}</h3>
-                      <p className="mt-1 text-sm text-stone-500">{template.exercises?.length || 0} exercises</p>
-                      <p className="mt-1 text-sm text-stone-500">{[...new Set(template.exercises?.map((exercise) => exercise.muscleGroup).filter(Boolean))].join(' / ')}</p>
+                      <p className="mt-1 text-sm text-[#62675f]">{template.exercises?.length || 0} exercises</p>
+                      <p className="mt-1 break-words text-sm text-[#62675f]">{getTemplateMuscleGroups(template).join(' · ')}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <button type="button" disabled={saving} onClick={() => startWorkout(template)} className="btn-primary">Start Workout</button>
-                      <button type="button" disabled={saving} onClick={() => chooseTemplate(template, template._id)} className="btn-secondary">Edit</button>
+                      <button type="button" disabled={saving} onClick={() => startWorkout(template)} className="btn-primary min-h-11">Start Workout</button>
+                      <button type="button" disabled={saving} onClick={() => chooseTemplate(template, template._id)} className="btn-secondary min-h-11">Edit</button>
                       <details className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}
                         onKeyDown={(event) => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary').focus(); } }}>
                         <summary aria-label={`More actions for ${template.name}`} className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-md border border-[#D2CFC7] text-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2f4f46]">...</summary>
@@ -205,7 +204,7 @@ function Templates() {
           </section>
         </>
       ) : (
-        <form onSubmit={(event) => { event.preventDefault(); if (step < 3) nextStep(); else saveTemplate(); }} className="max-w-4xl">
+        <form onSubmit={(event) => { event.preventDefault(); if (step < 2) nextStep(); else saveTemplate(true); }} className="max-w-4xl" aria-label="Template editor">
           <fieldset disabled={saving} className="min-w-0 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <ol aria-label="Template creation steps" className="flex flex-wrap gap-5 text-sm">
@@ -215,7 +214,7 @@ function Templates() {
             </div>
             <div>
               <h2 ref={headingRef} tabIndex={-1} className="section-title">{stepNames[step - 1]}</h2>
-              <p className="section-copy">{step === 1 ? 'Give this routine a name you will recognize.' : step === 2 ? 'Keep the exercise order that works for you. Sets, reps, and weight belong to your workout.' : 'Check the exercise list, then save it or begin training.'}</p>
+              <p className="section-copy">{step === 1 ? 'Make this exercise list your own. Log sets, reps, and weight when you start a workout.' : 'Check the exercise list, then save it or begin training.'}</p>
             </div>
 
             {step === 1 && (
@@ -228,20 +227,21 @@ function Templates() {
               </div>
             )}
 
-            {step === 2 && (
+            {step === 1 && (
               <div>
+                <h3 className="mb-4 text-lg font-semibold">Exercises</h3>
                 <div className="divide-y divide-[#D2CFC7] border-y border-[#D2CFC7]">
                   {formData.exercises.map((exercise, index) => (
                     <div key={index} className="py-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="min-w-0"><h3 className="break-words font-semibold">{exercise.exerciseName || 'New exercise'}</h3><p className="mt-1 text-sm text-stone-500">{exercise.muscleGroup || 'Muscle group not set'}</p></div>
+                        <div className="min-w-0 flex-1 basis-48"><h4 className="break-words font-semibold">{exercise.exerciseName || 'New exercise'}</h4><p className="mt-1 text-sm text-[#62675f]">{exercise.muscleGroup || 'Muscle group not set'}</p>{exercise.notes && editingExercise !== index && <p className="mt-2 break-words text-sm text-[#62675f]">{exercise.notes}</p>}</div>
                         <div className="flex gap-2">
-                          <button type="button" className="btn-secondary px-3" aria-label={`${editingExercise === index ? 'Finish editing' : 'Edit'} ${exercise.exerciseName || 'new exercise'}`} aria-expanded={editingExercise === index} onClick={() => setEditingExercise(editingExercise === index ? null : index)}>{editingExercise === index ? 'Done' : 'Edit'}</button>
-                          <button type="button" className="px-3 py-2 text-sm text-stone-500 underline underline-offset-4" aria-label={`Remove ${exercise.exerciseName || 'new exercise'}`} onClick={() => { updateField('exercises', formData.exercises.filter((_, i) => i !== index)); setEditingExercise(null); }}>Remove</button>
+                          <button type="button" className="btn-secondary min-h-11 px-3" aria-label={`${editingExercise === index ? 'Finish editing' : 'Edit'} ${exercise.exerciseName || 'new exercise'}`} aria-expanded={editingExercise === index} aria-controls={`template-exercise-${index}`} onClick={() => setEditingExercise(editingExercise === index ? null : index)}>{editingExercise === index ? 'Done' : 'Edit'}</button>
+                          <button type="button" className="min-h-11 px-3 py-2 text-sm text-[#62675f] underline underline-offset-4" aria-label={`Remove ${exercise.exerciseName || 'new exercise'}`} onClick={() => { updateField('exercises', formData.exercises.filter((_, i) => i !== index)); setEditingExercise(null); }}>Remove</button>
                         </div>
                       </div>
                       {editingExercise === index && (
-                        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div id={`template-exercise-${index}`} className="mt-5 grid gap-4 sm:grid-cols-2">
                           <label className="block"><span className="text-sm font-medium">Exercise name</span><input autoFocus required value={exercise.exerciseName} onChange={(event) => updateExercise(index, 'exerciseName', event.target.value)} className="form-field" /></label>
                           <label className="block"><span className="text-sm font-medium">Muscle group</span><input value={exercise.muscleGroup} onChange={(event) => updateExercise(index, 'muscleGroup', event.target.value)} className="form-field" /></label>
                           <label className="block sm:col-span-2"><span className="text-sm font-medium">Notes (optional)</span><textarea rows={2} value={exercise.notes} onChange={(event) => updateExercise(index, 'notes', event.target.value)} className="form-field" /></label>
@@ -255,23 +255,23 @@ function Templates() {
               </div>
             )}
 
-            {step === 3 && (
-              <section className="border-y border-[#D2CFC7] py-6">
-                <h3 className="text-xl font-semibold">{formData.name}</h3>
+            {step === 2 && (
+              <section className="border-y border-[#D2CFC7] py-6" aria-label="Template review">
+                <h3 className="break-words text-xl font-semibold">{formData.name}</h3>
                 <p className="mt-2 text-sm text-stone-500">{formData.exercises.length} exercises / {formData.category}</p>
-                {formData.description && <p className="mt-3 text-sm text-stone-500">{formData.description}</p>}
+                {formData.description && <p className="mt-3 break-words text-sm text-[#62675f]">{formData.description}</p>}
                 <ol className="mt-5 divide-y divide-[#D2CFC7]">
-                  {formData.exercises.map((exercise, index) => <li key={index} className="py-3"><p className="font-medium">{exercise.exerciseName}</p><p className="text-sm text-stone-500">{exercise.muscleGroup}</p>{exercise.notes && <p className="mt-1 text-sm text-stone-500">{exercise.notes}</p>}</li>)}
+                  {formData.exercises.map((exercise, index) => <li key={index} className="break-words py-3"><p className="font-medium">{exercise.exerciseName}</p><p className="text-sm text-[#62675f]">{exercise.muscleGroup}</p>{exercise.notes && <p className="mt-1 text-sm text-[#62675f]">{exercise.notes}</p>}</li>)}
                 </ol>
               </section>
             )}
 
             <div className="flex flex-wrap gap-3 border-t border-[#D2CFC7] pt-6">
               {step > 1 && <button type="button" className="btn-secondary" onClick={() => { setStep((current) => current - 1); setError(''); }}>Back</button>}
-              {step < 3 ? <button type="submit" className="btn-primary">Continue</button> : (
+              {step < 2 ? <button type="submit" className="btn-primary min-h-11">Review Template</button> : (
                 <>
-                  <button type="submit" className="btn-secondary">{saving ? 'Saving...' : 'Save Template'}</button>
-                  <button type="button" className="btn-primary" onClick={() => saveTemplate(true)}>{saving ? 'Saving...' : 'Save & Start Workout'}</button>
+                  <button type="submit" className="btn-primary min-h-11">{saving ? 'Saving...' : 'Save & Start Workout'}</button>
+                  <button type="button" className="btn-secondary min-h-11" onClick={() => saveTemplate(false)}>{saving ? 'Saving...' : 'Save Template'}</button>
                 </>
               )}
             </div>
