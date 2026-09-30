@@ -31,12 +31,11 @@ const filterOptions = [
 ];
 
 const chartColors = {
-  squat: '#d6c08a',
-  bench: '#a8a29e',
-  deadlift: '#f5f5f4',
-  overhead_press: '#78716c',
-  bar: '#d6c08a',
-  muted: '#57534e',
+  squat: '#2f4f46',
+  bench: '#73857a',
+  deadlift: '#151714',
+  overhead_press: '#a1aaa1',
+  bar: '#2f4f46',
 };
 
 const formatDate = (date) =>
@@ -279,10 +278,6 @@ const buildInsights = ({ liftProgress, volumeData, consistency, prSummary }) => 
     insights.push('Consistency is strong. Keep progression conservative if fatigue or bar speed starts to slip.');
   }
 
-  if (consistency.completionPercentage < 50 && consistency.completedCount + consistency.plannedCount > 0) {
-    insights.push('Completion rate is low. Reduce planned workload before increasing training maxes.');
-  }
-
   if (liftProgress.some((lift) => lift.recentIncrease === 0 && lift.entries >= 2)) {
     insights.push('At least one lift has no recent training max increase. Consider a deload or repeat week if performance feels flat.');
   }
@@ -293,7 +288,9 @@ const buildInsights = ({ liftProgress, volumeData, consistency, prSummary }) => 
 
   return insights.length > 0
     ? insights
-    : ['Log workouts, training max updates, and PRs to unlock coaching insights.'];
+    : [consistency.completedCount > 0
+      ? `You completed ${consistency.completedCount} workout${consistency.completedCount === 1 ? '' : 's'} in this range. Keep logging to reveal a reliable trend.`
+      : 'Log workouts and training max updates to reveal a reliable trend.'];
 };
 
 function Metric({ label, value, detail }) {
@@ -308,9 +305,9 @@ function Metric({ label, value, detail }) {
 
 function ChartShell({ title, empty, children }) {
   return (
-    <section className="quiet-card">
+    <section className="border-t border-[#D2CFC7] pt-6">
       <h2 className="section-title">{title}</h2>
-      {empty ? <p className="empty-state mt-4">Not enough data yet.</p> : <div className="mt-6 h-72">{children}</div>}
+      {empty ? <p className="mt-3 text-sm text-[#62675f]">Log more training to see this trend.</p> : <div className="mt-6 h-72">{children}</div>}
     </section>
   );
 }
@@ -391,10 +388,10 @@ function Analytics() {
     >
       <header className="flex flex-wrap items-start justify-between gap-6 border-b border-stone-800 pb-8">
         <div>
-          <p className="eyebrow">Coaching Analytics</p>
-          <h1 className="page-title">Advanced Analytics</h1>
+          <p className="eyebrow">Progress / Analytics</p>
+          <h1 className="page-title">Training Insights</h1>
           <p className="page-copy">
-            Strength, volume, consistency, and PR signals generated from your logged training data.
+            Strength, consistency, and volume from your logged training.
           </p>
         </div>
 
@@ -413,31 +410,29 @@ function Analytics() {
       {error && <p className="status-error">{error}</p>}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-4" aria-label="Loading analytics">
-          {[0, 1, 2, 3].map((item) => (
-            <div key={item} className="h-32 animate-pulse rounded-lg border border-stone-800 bg-stone-900/40" />
+        <div className="grid gap-4 sm:grid-cols-2" aria-label="Loading analytics">
+          {[0, 1].map((item) => (
+            <div key={item} className="h-24 animate-pulse rounded-lg border border-[#D2CFC7] bg-[#FAF9F6]" />
           ))}
         </div>
       ) : (
         <>
-          <section className="grid gap-6 md:grid-cols-4">
-            <Metric
-              label="Completed Workouts"
-              value={analytics.volumeData.completed.length}
-              detail={selectedFilterLabel}
-            />
-            <Metric label="Weekly Volume" value={analytics.volumeData.weeklyVolume.at(-1)?.volume || 0} detail="Latest week" />
-            <Metric label="Average Duration" value={`${analytics.volumeData.averageDuration}m`} detail="Completed sessions" />
-            <Metric label="Completion" value={`${analytics.consistency.completionPercentage}%`} detail="Planned vs completed" />
+          <section aria-label="At a glance" className="space-y-4">
+            <h2 className="section-title">At a glance</h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <Metric label="Completed workouts" value={analytics.volumeData.completed.length || 'No sessions yet'} detail={selectedFilterLabel} />
+              {analytics.consistency.completedCount + analytics.consistency.plannedCount > 0 && <Metric label="Completion" value={`${analytics.consistency.completionPercentage}%`} detail="Scheduled sessions" />}
+              {analytics.prSummary.mostImprovedLift?.change > 0 && <Metric label="Strongest trend" value={analytics.prSummary.mostImprovedLift.label} detail={`+${analytics.prSummary.mostImprovedLift.change} lb training max`} />}
+            </div>
           </section>
 
-          <ChartShell title="Strength Progress" empty={analytics.strengthChartData.length === 0}>
+          <ChartShell title="Strength Progress" empty={analytics.strengthChartData.length < 2}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={analytics.strengthChartData}>
-                <CartesianGrid stroke="#292524" vertical={false} />
-                <XAxis dataKey="label" stroke="#78716c" tickLine={false} axisLine={false} />
-                <YAxis stroke="#78716c" tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ background: '#1c1917', border: '1px solid #44403c', color: '#fafaf9' }} />
+                <CartesianGrid stroke="#D2CFC7" vertical={false} />
+                <XAxis dataKey="label" stroke="#62675f" tickLine={false} axisLine={false} />
+                <YAxis stroke="#62675f" tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ background: '#FAF9F6', border: '1px solid #D2CFC7', color: '#151714' }} />
                 <Legend />
                 {Object.entries(liftLabels).map(([key, label]) => (
                   <Line
@@ -455,99 +450,32 @@ function Analytics() {
             </ResponsiveContainer>
           </ChartShell>
 
-          <section className="grid gap-6 lg:grid-cols-2">
-            <ChartShell title="Weekly Workout Volume" empty={analytics.volumeData.weeklyVolume.length === 0}>
+          <section className="border-t border-[#D2CFC7] pt-6">
+            <h2 className="section-title">Consistency</h2>
+            {analytics.consistency.completedCount + analytics.consistency.plannedCount > 0 ? (
+              <p className="mt-3 text-sm text-[#62675f]">{analytics.consistency.completedCount} completed · {analytics.consistency.plannedCount} planned · {analytics.consistency.completionPercentage}% completion in this range.</p>
+            ) : <p className="mt-3 text-sm text-[#62675f]">Plan or log a workout to track consistency.</p>}
+            <details className="mt-4"><summary className="cursor-pointer py-2 text-sm font-semibold text-[#2f4f46]">More consistency details</summary><dl className="mt-3 grid gap-4 sm:grid-cols-2"><Metric label="Current streak" value={analytics.consistency.currentStreak} detail="Consecutive training days" /><Metric label="Longest streak" value={analytics.consistency.longestStreak} detail="Best run in range" /></dl></details>
+          </section>
+
+          <section>
+            <ChartShell title="Training Volume" empty={analytics.volumeData.weeklyVolume.every((week) => week.volume <= 0)}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={analytics.volumeData.weeklyVolume}>
-                  <CartesianGrid stroke="#292524" vertical={false} />
-                  <XAxis dataKey="label" stroke="#78716c" tickLine={false} axisLine={false} />
-                  <YAxis stroke="#78716c" tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ background: '#1c1917', border: '1px solid #44403c', color: '#fafaf9' }} />
+                  <CartesianGrid stroke="#D2CFC7" vertical={false} />
+                  <XAxis dataKey="label" stroke="#62675f" tickLine={false} axisLine={false} />
+                  <YAxis stroke="#62675f" tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ background: '#FAF9F6', border: '1px solid #D2CFC7', color: '#151714' }} />
                   <Bar dataKey="volume" name="Volume" fill={chartColors.bar} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartShell>
-
-            <ChartShell title="Monthly Workout Volume" empty={analytics.volumeData.monthlyVolume.length === 0}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics.volumeData.monthlyVolume}>
-                  <CartesianGrid stroke="#292524" vertical={false} />
-                  <XAxis dataKey="label" stroke="#78716c" tickLine={false} axisLine={false} />
-                  <YAxis stroke="#78716c" tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ background: '#1c1917', border: '1px solid #44403c', color: '#fafaf9' }} />
-                  <Bar dataKey="volume" name="Volume" fill={chartColors.muted} radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartShell>
+            {analytics.volumeData.completed.length > 0 && <details className="mt-3"><summary className="cursor-pointer py-2 text-sm font-semibold text-[#2f4f46]">More volume details</summary><div className="grid gap-4 sm:grid-cols-2"><Metric label="Total volume" value={`${analytics.volumeData.totalVolume} lb`} detail={selectedFilterLabel} /><Metric label="Average duration" value={`${analytics.volumeData.averageDuration} min`} detail="Completed workouts" /></div></details>}
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <section className="quiet-card">
-              <h2 className="section-title">Consistency</h2>
-              <dl className="mt-6 grid gap-5 sm:grid-cols-2">
-                <Metric label="Current Streak" value={analytics.consistency.currentStreak} detail="Consecutive workout days" />
-                <Metric label="Longest Streak" value={analytics.consistency.longestStreak} detail="Best run in range" />
-                <Metric label="Completed" value={analytics.consistency.completedCount} detail="Completed workouts" />
-                <Metric label="Planned" value={analytics.consistency.plannedCount} detail="Still pending" />
-              </dl>
-            </section>
-
-            <ChartShell title="Planned vs Completed" empty={analytics.consistency.plannedVsCompleted.every((item) => item.workouts === 0)}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics.consistency.plannedVsCompleted}>
-                  <CartesianGrid stroke="#292524" vertical={false} />
-                  <XAxis dataKey="label" stroke="#78716c" tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} stroke="#78716c" tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ background: '#1c1917', border: '1px solid #44403c', color: '#fafaf9' }} />
-                  <Bar dataKey="workouts" fill={chartColors.bar} radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartShell>
-          </section>
-
-          <section className="quiet-card">
-            <h2 className="section-title">Personal Records</h2>
-            <div className="mt-6 grid gap-6 md:grid-cols-4">
-              <Metric
-                label="Newest PR"
-                value={analytics.prSummary.newestPR?.exerciseName || 'None'}
-                detail={analytics.prSummary.newestPR ? `${getPRValue(analytics.prSummary.newestPR)} lb est. 1RM` : 'Log a PR to begin'}
-              />
-              <Metric
-                label="Highest PR"
-                value={analytics.prSummary.highestPR ? `${getPRValue(analytics.prSummary.highestPR)} lb` : 'None'}
-                detail={analytics.prSummary.highestPR?.exerciseName || 'No PR data'}
-              />
-              <Metric
-                label="Most Improved Lift"
-                value={analytics.prSummary.mostImprovedLift?.label || 'None'}
-                detail={
-                  analytics.prSummary.mostImprovedLift
-                    ? `${analytics.prSummary.mostImprovedLift.change} lb TM change`
-                    : 'No progression data'
-                }
-              />
-              <Metric
-                label="Fastest Progress"
-                value={analytics.prSummary.fastestProgress?.label || 'None'}
-                detail={
-                  analytics.prSummary.fastestProgress
-                    ? `${analytics.prSummary.fastestProgress.percent.toFixed(1)}% change`
-                    : 'No progression data'
-                }
-              />
-            </div>
-          </section>
-
-          <section className="quiet-card">
-            <h2 className="section-title">Adaptive Engine Insights</h2>
-            <div className="mt-5 divide-y divide-stone-800">
-              {analytics.insights.map((insight) => (
-                <p key={insight} className="py-4 text-sm leading-6 text-stone-300">
-                  {insight}
-                </p>
-              ))}
-            </div>
+          <section className="border-t border-[#D2CFC7] pt-6">
+            <h2 className="section-title">Coach Insight</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#62675f]">{analytics.insights[0]}</p>
           </section>
         </>
       )}

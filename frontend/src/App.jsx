@@ -43,7 +43,7 @@ function App() {
             <Route path={appPaths.templates} element={<Templates />} />
           </Route>
           <Route element={<AppSectionLayout section="Progress" />}>
-            <Route path={appPaths.progress} element={<Navigate to={appPaths.history} replace />} />
+            <Route path={appPaths.progress} element={<Progress activeSection="overview" />} />
             <Route path={appPaths.history} element={<Progress activeSection="training-history" />} />
             <Route path={appPaths.prs} element={<Progress activeSection="log-pr" />} />
             <Route path={appPaths.body} element={<Progress activeSection="body-metrics" />} />

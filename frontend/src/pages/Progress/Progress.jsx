@@ -5,6 +5,7 @@ import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { prService } from '../../services/prService';
 import { progressService } from '../../services/progressService';
 import { workoutService } from '../../services/workoutService';
+import { trainingMaxService } from '../../services/trainingMaxService';
 import { appPaths, progressSectionPaths } from '../../utils/navigation';
 import TrainStart from '../../components/TrainStart/TrainStart.jsx';
 import { createWorkoutDraft, WORKOUT_DRAFT_STORAGE_KEY } from '../../utils/templateWorkflow';
@@ -12,6 +13,7 @@ import { createWorkoutDraft, WORKOUT_DRAFT_STORAGE_KEY } from '../../utils/templ
 const today = () => new Date().toISOString().slice(0, 10);
 
 const sectionHeadings = {
+  overview: ['Progress', 'Overview', 'See how your training is developing over time.'],
   'log-workout': ['Train', 'Start Workout', 'Continue a planned session, use a template, or start fresh.'],
   'log-pr': ['Progress', 'Personal Records', 'Log a PR when you hit a new best. Review your records below.'],
   'training-history': ['Progress', 'Training History', 'Your completed sessions, exercises, and sets in one place.'],
@@ -86,6 +88,9 @@ const formatDate = (date) =>
     timeZone: 'UTC',
   }).format(new Date(date));
 
+const formatShortDate = (date) =>
+  new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(date));
+
 const toProgressForm = (log) => ({
   date: log.date ? log.date.slice(0, 10) : today(),
   bodyWeight: log.bodyWeight ?? '',
@@ -134,6 +139,7 @@ function Progress({ activeSection = 'training-history' }) {
   const [workouts, setWorkouts] = useState([]);
   const [bodyLogs, setBodyLogs] = useState([]);
   const [prs, setPrs] = useState([]);
+  const [trainingMaxes, setTrainingMaxes] = useState([]);
   const [workoutForm, setWorkoutForm] = useState(emptyWorkoutForm);
   const [progressForm, setProgressForm] = useState(emptyProgressForm);
   const [prForm, setPrForm] = useState(emptyPrForm);
@@ -211,6 +217,18 @@ function Progress({ activeSection = 'training-history' }) {
   }, []);
 
   useEffect(() => {
+    if (activeSection !== 'overview') return;
+    let active = true;
+    trainingMaxService.getTrainingMaxes()
+      .then((response) => { if (active) setTrainingMaxes(response.data || []); })
+      .catch(async (err) => {
+        if (err.response?.status === 401) await logout();
+        else if (active) setError(err.response?.data?.message || 'Unable to load strength trend.');
+      });
+    return () => { active = false; };
+  }, [activeSection, logout]);
+
+  useEffect(() => {
     if (!realtime) return undefined;
 
     return realtime.subscribe(['workout.updated', 'workout.completed', 'progress.updated'], () => {
@@ -276,6 +294,14 @@ function Progress({ activeSection = 'training-history' }) {
     () => workouts.filter((workout) => workout.status === 'completed').sort((a, b) => new Date(b.date) - new Date(a.date)),
     [workouts],
   );
+
+  const recentPr = useMemo(() => [...prs].sort((a, b) => new Date(b.date) - new Date(a.date))[0], [prs]);
+  const strengthChanges = useMemo(() => trainingMaxes.flatMap((lift) => {
+    const history = [...(lift.history || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+    if (history.length < 2) return [];
+    return [{ name: lift.liftName.replace(/_/g, ' '), change: Number(history.at(-1).trainingMax) - Number(history[0].trainingMax) }];
+  }), [trainingMaxes]);
+  const trainingCount = completedWorkouts.length + plannedWorkouts.length + workouts.filter((workout) => workout.status === 'skipped').length;
 
   const setSection = (sectionId, state) => {
     navigate(progressSectionPaths[sectionId], { state });
@@ -589,6 +615,37 @@ function Progress({ activeSection = 'training-history' }) {
         </div>
       ) : (
         <>
+          {activeSection === 'overview' && (
+            <div className="space-y-10">
+              <section aria-label="Progress at a glance" className="grid gap-6 border-b border-[#D2CFC7] pb-8 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="border-t border-[#D2CFC7] pt-4">
+                  <h2 className="eyebrow">Recent training</h2>
+                  {completedWorkouts[0] ? <><p className="mt-2 break-words text-lg font-semibold">{completedWorkouts[0].title}</p><p className="mt-1 text-sm text-[#62675f]">{formatDate(completedWorkouts[0].date)}</p></> : <p className="mt-2 text-sm text-[#62675f]">No workout history yet.</p>}
+                  <Link to={completedWorkouts.length ? appPaths.history : appPaths.train} className="mt-3 inline-block text-sm font-semibold text-[#2f4f46] underline underline-offset-4">{completedWorkouts.length ? 'View history' : 'Start Workout'}</Link>
+                </div>
+                <div className="border-t border-[#D2CFC7] pt-4">
+                  <h2 className="eyebrow">Consistency</h2>
+                  <p className="mt-2 text-lg font-semibold">{trainingCount ? `${Math.round(completedWorkouts.length / trainingCount * 100)}% completed` : 'No sessions yet'}</p>
+                  {trainingCount > 0 && <p className="mt-1 text-sm text-[#62675f]">{completedWorkouts.length} of {trainingCount} scheduled sessions</p>}
+                </div>
+                <div className="border-t border-[#D2CFC7] pt-4">
+                  <h2 className="eyebrow">Recent PR</h2>
+                  <p className="mt-2 break-words text-lg font-semibold">{recentPr ? `${recentPr.exerciseName} · ${getPRValue(recentPr)} lb` : 'No PRs yet'}</p>
+                  <Link to={appPaths.prs} className="mt-3 inline-block text-sm font-semibold text-[#2f4f46] underline underline-offset-4">{recentPr ? 'View PRs' : 'Log PR'}</Link>
+                </div>
+                <div className="border-t border-[#D2CFC7] pt-4">
+                  <h2 className="eyebrow">Current strength trend</h2>
+                  <p className="mt-2 text-lg font-semibold">{strengthChanges.length ? `${strengthChanges.filter((lift) => lift.change > 0).length} of ${strengthChanges.length} lifts improving` : 'Not enough history yet'}</p>
+                  <Link to={appPaths.analytics} className="mt-3 inline-block text-sm font-semibold text-[#2f4f46] underline underline-offset-4">View analytics</Link>
+                </div>
+              </section>
+              <section>
+                <h2 className="section-title">Keep moving</h2>
+                <p className="section-copy">Your next workout and detailed trends live in their own sections.</p>
+                <div className="mt-5 flex flex-wrap gap-3"><Link to={appPaths.train} className="btn-primary min-h-11">Start Workout</Link><Link to={appPaths.history} className="btn-secondary min-h-11">Training History</Link></div>
+              </section>
+            </div>
+          )}
           {activeSection === 'log-workout' && !workoutEditorOpen && (
             <TrainStart plannedWorkouts={plannedWorkouts} onStartPlanned={startPlannedWorkout} onStartBlank={startBlankWorkout} onStartTemplate={startTemplateWorkout} />
           )}
@@ -823,25 +880,25 @@ function Progress({ activeSection = 'training-history' }) {
 
           {activeSection === 'training-history' && (
             <section className="space-y-5">
-                <div>
-                  <h2 className="section-title">Completed sessions</h2>
+              <div>
+                <h2 className="section-title">Completed sessions</h2>
                 <p className="section-copy">Review completed sessions. Expand a workout to see its exercises and sets.</p>
               </div>
 
               {completedWorkouts.length === 0 ? (
                 <div className="border-y border-[#D2CFC7] py-8">
-                  <p className="font-semibold">Your completed workouts will appear here.</p>
+                  <p className="font-semibold">No workout history yet.</p>
                   <p className="mt-2 text-sm text-stone-500">Record a session to review your exercises and performance over time.</p>
                   <Link to={appPaths.train} className="btn-primary mt-5">Start Workout</Link>
                 </div>
               ) : (
                 <div className="divide-y divide-stone-800 border-y border-stone-800">
                   {completedWorkouts.map((workout) => (
-                    <details key={workout._id} className="group py-5">
-                      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4">
+                    <details key={workout._id} className="group py-4">
+                      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#2f4f46]">
                         <div>
-                          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">{formatDate(workout.date)}</p>
-                          <h3 className="mt-2 text-xl font-semibold text-stone-50">{workout.title}</h3>
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">{formatShortDate(workout.date)}</p>
+                          <h3 className="mt-1 break-words text-base font-semibold text-stone-50">{workout.title}</h3>
                           <p className="mt-1 text-sm text-stone-500">
                             {workout.exercises?.length || 0} exercises
                             {` · ${workout.exercises?.reduce((count, exercise) => count + (exercise.sets?.length || 0), 0) || 0} sets`}
@@ -860,8 +917,8 @@ function Progress({ activeSection = 'training-history' }) {
                           >
                             Edit
                           </button>
-                          <span className="text-sm font-semibold text-stone-500 group-open:hidden" aria-hidden="true">Show</span>
-                          <span className="hidden text-sm font-semibold text-stone-500 group-open:inline" aria-hidden="true">Hide</span>
+                          <span className="text-lg font-semibold text-stone-500 group-open:hidden" aria-hidden="true">⌄</span>
+                          <span className="hidden text-lg font-semibold text-stone-500 group-open:inline" aria-hidden="true">⌃</span>
                         </div>
                       </summary>
 
@@ -944,22 +1001,20 @@ function Progress({ activeSection = 'training-history' }) {
                 {bodyLogs.length === 0 ? (
                   <p className="empty-state">Log body metrics to review your measurement history.</p>
                 ) : (
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="divide-y divide-[#D2CFC7] border-y border-[#D2CFC7]">
                     {bodyLogs.map((log) => (
-                      <article key={log._id} className="quiet-card">
+                      <article key={log._id} className="py-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <h3 className="font-semibold text-stone-100">{formatDate(log.date)}</h3>
-                            <p className="mt-1 text-sm text-stone-500">
-                              {log.bodyWeight || 0} weight - {log.bodyFatPercentage || 0}% body fat
-                            </p>
+                            <p className="mt-1 text-sm text-stone-500">{log.bodyWeight != null ? `${log.bodyWeight} lb` : 'Weight not logged'}{log.bodyFatPercentage != null ? ` · ${log.bodyFatPercentage}% body fat` : ''}</p>
                           </div>
                         </div>
                         <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                           {['chest', 'waist', 'hips', 'arms', 'thighs'].map((field) => (
                             <div key={field}>
                               <dt className="capitalize text-stone-500">{field}</dt>
-                              <dd className="font-medium text-stone-100">{log.measurements?.[field] || 0}</dd>
+                              <dd className="font-medium text-stone-100">{log.measurements?.[field] ?? '—'}</dd>
                             </div>
                           ))}
                         </dl>

@@ -8,7 +8,10 @@ test('primary navigation has five task-oriented destinations, with utilities sep
   assert.equal(appNavigationLinks[0].end, true);
   assert.deepEqual(sectionNavigation.Program.map((link) => link.label), ['Program', 'Calendar']);
   assert.deepEqual(sectionNavigation.Train.map((link) => link.label), ['Start Workout', 'Templates']);
-  assert.deepEqual(sectionNavigation.Progress.map((link) => link.label), ['History', 'PRs', 'Body Metrics', 'Analytics']);
+  assert.deepEqual(sectionNavigation.Progress.map((link) => link.label), ['Overview', 'History', 'PRs', 'Body', 'Analytics']);
+  assert.equal(sectionNavigation.Progress[0].to, appPaths.progress);
+  assert.equal(sectionNavigation.Progress[0].end, true);
+  assert.equal(progressSectionPaths.overview, appPaths.progress);
   assert.ok(!appNavigationLinks.some((link) => link.to === appPaths.profile));
 });
 

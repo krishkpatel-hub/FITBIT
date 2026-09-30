@@ -11,6 +11,7 @@ export const appPaths = {
   train: '/app/train',
   templates: '/app/train/templates',
   progress: '/app/progress',
+  overview: '/app/progress',
   history: '/app/progress/history',
   prs: '/app/progress/prs',
   body: '/app/progress/body',
@@ -37,14 +38,16 @@ export const sectionNavigation: Record<string, NavigationLink[]> = {
     { to: appPaths.templates, label: 'Templates' },
   ],
   Progress: [
+    { to: appPaths.overview, label: 'Overview', end: true },
     { to: appPaths.history, label: 'History' },
     { to: appPaths.prs, label: 'PRs' },
-    { to: appPaths.body, label: 'Body Metrics' },
+    { to: appPaths.body, label: 'Body' },
     { to: appPaths.analytics, label: 'Analytics' },
   ],
 };
 
 export const progressSectionPaths: Record<string, string> = {
+  overview: appPaths.overview,
   'log-workout': appPaths.train,
   'log-pr': appPaths.prs,
   'training-history': appPaths.history,
