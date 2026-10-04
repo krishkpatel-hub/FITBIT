@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const profileFields = {
+  firstName: '',
+  lastName: '',
+  username: '',
+  email: '',
   weight: '',
   age: '',
   gender: '',
@@ -87,6 +91,8 @@ function Profile() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    setError('');
+    setSuccess('');
     setFormData((current) => ({
       ...current,
       [name]: value,
@@ -95,6 +101,8 @@ function Profile() {
 
   const handleHeightChange = (event) => {
     const { name, value } = event.target;
+    setError('');
+    setSuccess('');
     setHeightFields((current) => ({
       ...current,
       [name]: value,
@@ -105,6 +113,8 @@ function Profile() {
     const nextUnit = event.target.value;
     const pounds = displayWeightToPounds(formData.weight, weightUnit);
 
+    setError('');
+    setSuccess('');
     setWeightUnit(nextUnit);
     setFormData((current) => ({
       ...current,
@@ -118,6 +128,23 @@ function Profile() {
     const feet = Number(heightFields.feet);
     const inches = Number(heightFields.inches || 0);
     const weight = Number(formData.weight);
+    const age = Number(formData.age);
+
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      validationErrors.push('First and last name are required.');
+    }
+
+    if (formData.username.trim().length < 3 || formData.username.trim().length > 30) {
+      validationErrors.push('Username must be between 3 and 30 characters.');
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(formData.email.trim())) {
+      validationErrors.push('Enter a valid email address.');
+    }
+
+    if (formData.age !== '' && (!Number.isInteger(age) || age < 0)) {
+      validationErrors.push('Age must be a non-negative whole number.');
+    }
 
     if (formData.weight !== '' && (!Number.isFinite(weight) || weight <= 0)) {
       validationErrors.push('Weight must be a positive number.');
@@ -143,7 +170,7 @@ function Profile() {
         return profilePayload;
       }
 
-      profilePayload[key] = numberFields.has(key) ? Number(value) : value;
+      profilePayload[key] = numberFields.has(key) ? Number(value) : value.trim();
       return profilePayload;
     }, {});
 
@@ -181,192 +208,189 @@ function Profile() {
   };
 
   return (
-    <section className="page-stack">
+    <section className="page-stack mx-auto max-w-3xl">
       <div className="page-header">
         <p className="eyebrow">Account</p>
         <h1 className="page-title">Profile</h1>
-        <p className="page-copy">
-          Keep personal details simple and strength-focused.
-        </p>
+        <p className="page-copy">Manage your account and training preferences.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="quiet-card">
-        <h2 className="section-title">Personal & Fitness Details</h2>
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {error && <p role="alert" className="status-error">{error}</p>}
+        {success && <p role="status" className="status-success">{success}</p>}
 
-        {error && <p className="mt-4 status-error">{error}</p>}
-        {success && <p className="mt-4 status-success">{success}</p>}
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div>
-            <p className="text-sm font-medium text-stone-300">First name</p>
-            <p className="mt-1 break-words rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
-              {user?.firstName || 'Not set'}
-            </p>
+        <section aria-labelledby="profile-personal" className="border-b border-[#D2CFC7] pb-8">
+          <h2 id="profile-personal" className="text-xl font-semibold text-[#151714]">Personal</h2>
+          <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-medium">First name</span>
+              <input name="firstName" autoComplete="given-name" required value={formData.firstName} onChange={handleChange} className="form-field" />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Last name</span>
+              <input name="lastName" autoComplete="family-name" required value={formData.lastName} onChange={handleChange} className="form-field" />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Username</span>
+              <input name="username" autoComplete="username" required minLength="3" maxLength="30" value={formData.username} onChange={handleChange} className="form-field" />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Email</span>
+              <input type="email" name="email" autoComplete="email" required value={formData.email} onChange={handleChange} className="form-field" />
+            </label>
           </div>
+        </section>
 
-          <div>
-            <p className="text-sm font-medium text-stone-300">Last name</p>
-            <p className="mt-1 break-words rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
-              {user?.lastName || 'Not set'}
-            </p>
-          </div>
+        <section aria-labelledby="profile-body" className="border-b border-[#D2CFC7] pb-8">
+          <h2 id="profile-body" className="text-xl font-semibold text-[#151714]">Body</h2>
+          <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-medium">Age</span>
+              <input
+                type="number"
+                name="age"
+                min="0"
+                step="1"
+                value={formData.age}
+                onChange={handleChange}
+                className="form-field"
+              />
+            </label>
 
-          <div>
-            <p className="text-sm font-medium text-stone-300">Username</p>
-            <p className="mt-1 break-words rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
-              {user?.username || 'Not set'}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-stone-300">Email</p>
-            <p className="mt-1 break-words rounded-md border border-[#2a2f32] bg-[#191d1f] px-3 py-2 text-sm text-stone-200">
-              {user?.email || 'Not set'}
-            </p>
-          </div>
-
-          <label className="block">
-            <span className="text-sm font-medium text-stone-300">Age</span>
-            <input
-              type="number"
-              name="age"
-              min="0"
-              value={formData.age}
-              onChange={handleChange}
-              className="form-field"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-medium text-stone-300">Gender</span>
-            <select
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              className="form-field"
-            >
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="non-binary">Non-binary</option>
-              <option value="prefer-not-to-say">Prefer not to say</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
-
-          <fieldset className="block">
-            <legend className="text-sm font-medium text-stone-300">Height</legend>
-            <p className="mt-1 text-xs text-stone-500">Enter feet and inches</p>
-            <div className="mt-2 grid grid-cols-2 gap-3">
-              <label>
-                <span className="text-xs font-medium uppercase tracking-[0.14em] text-stone-500">Feet</span>
-                <input
-                  type="number"
-                  name="feet"
-                  min="3"
-                  max="8"
-                  step="1"
-                  placeholder="5"
-                  value={heightFields.feet}
-                  onChange={handleHeightChange}
-                  className="form-field"
-                />
-              </label>
-              <label>
-                <span className="text-xs font-medium uppercase tracking-[0.14em] text-stone-500">Inches</span>
-                <input
-                  type="number"
-                  name="inches"
-                  min="0"
-                  max="11"
-                  step="1"
-                  placeholder="3"
-                  value={heightFields.inches}
-                  onChange={handleHeightChange}
-                  className="form-field"
-                />
-              </label>
-            </div>
-            <p className="mt-2 text-xs text-stone-500">Current: {formatHeight(heightFields)}</p>
-          </fieldset>
-
-          <fieldset className="block">
-            <legend className="text-sm font-medium text-stone-300">Weight</legend>
-            <p className="mt-1 text-xs text-stone-500">Choose lb or kg</p>
-            <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-              <div className="relative flex-1">
-                <input
-                  type="number"
-                  name="weight"
-                  aria-label="Weight"
-                  min="0"
-                  step="0.1"
-                  placeholder="175"
-                  value={formData.weight}
-                  onChange={handleChange}
-                  className="form-field pr-14"
-                />
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#d6b94c]">
-                  {weightUnit}
-                </span>
-              </div>
+            <label className="block">
+              <span className="text-sm font-medium">Gender</span>
               <select
-                value={weightUnit}
-                onChange={handleWeightUnitChange}
-                className="form-field sm:w-24"
-                aria-label="Weight unit"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                className="form-field"
               >
-                <option value="lb">lb</option>
-                <option value="kg">kg</option>
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="non-binary">Non-binary</option>
+                <option value="prefer-not-to-say">Prefer not to say</option>
+                <option value="other">Other</option>
               </select>
-            </div>
-          </fieldset>
+            </label>
 
-          <label className="block">
-            <span className="text-sm font-medium text-stone-300">Fitness goal</span>
-            <select
-              name="fitnessGoal"
-              value={formData.fitnessGoal}
-              onChange={handleChange}
-              className="form-field"
-            >
-              <option value="">Select goal</option>
-              <option value="lose-weight">Lose weight</option>
-              <option value="build-muscle">Build muscle</option>
-              <option value="maintain">Maintain</option>
-              <option value="increase-strength">Increase strength</option>
-              <option value="improve-endurance">Improve endurance</option>
-            </select>
-          </label>
+            <fieldset className="block">
+              <legend className="text-sm font-medium">Height</legend>
+              <p className="mt-1 text-xs text-[#4F534E]">Enter feet and inches</p>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <label>
+                  <span className="text-xs font-medium uppercase tracking-[0.14em] text-[#4F534E]">Feet</span>
+                  <input
+                    type="number"
+                    name="feet"
+                    min="3"
+                    max="8"
+                    step="1"
+                    placeholder="5"
+                    value={heightFields.feet}
+                    onChange={handleHeightChange}
+                    className="form-field"
+                  />
+                </label>
+                <label>
+                  <span className="text-xs font-medium uppercase tracking-[0.14em] text-[#4F534E]">Inches</span>
+                  <input
+                    type="number"
+                    name="inches"
+                    min="0"
+                    max="11"
+                    step="1"
+                    placeholder="3"
+                    value={heightFields.inches}
+                    onChange={handleHeightChange}
+                    className="form-field"
+                  />
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-[#4F534E]">Current: {formatHeight(heightFields)}</p>
+            </fieldset>
 
-          <label className="block">
-            <span className="text-sm font-medium text-stone-300">Activity level</span>
-            <select
-              name="activityLevel"
-              value={formData.activityLevel}
-              onChange={handleChange}
-              className="form-field"
-            >
-              <option value="">Select level</option>
-              <option value="sedentary">Sedentary</option>
-              <option value="light">Light</option>
-              <option value="moderate">Moderate</option>
-              <option value="active">Active</option>
-              <option value="very-active">Very active</option>
-            </select>
-          </label>
+            <fieldset className="block">
+              <legend className="text-sm font-medium">Weight</legend>
+              <p className="mt-1 text-xs text-[#4F534E]">Choose lb or kg</p>
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    name="weight"
+                    aria-label="Weight"
+                    min="0"
+                    step="0.1"
+                    placeholder="175"
+                    value={formData.weight}
+                    onChange={handleChange}
+                    className="form-field pr-14"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#2f4f46]">
+                    {weightUnit}
+                  </span>
+                </div>
+                <select
+                  value={weightUnit}
+                  onChange={handleWeightUnitChange}
+                  className="form-field sm:w-24"
+                  aria-label="Weight unit"
+                >
+                  <option value="lb">lb</option>
+                  <option value="kg">kg</option>
+                </select>
+              </div>
+            </fieldset>
+          </div>
+        </section>
 
-        </div>
+        <section aria-labelledby="profile-preferences">
+          <h2 id="profile-preferences" className="text-xl font-semibold text-[#151714]">Training Preferences</h2>
+          <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-sm font-medium">Fitness goal</span>
+              <select
+                name="fitnessGoal"
+                value={formData.fitnessGoal}
+                onChange={handleChange}
+                className="form-field"
+              >
+                <option value="">Select goal</option>
+                <option value="lose-weight">Lose weight</option>
+                <option value="build-muscle">Build muscle</option>
+                <option value="maintain">Maintain</option>
+                <option value="increase-strength">Increase strength</option>
+                <option value="improve-endurance">Improve endurance</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-sm font-medium">Activity level</span>
+              <select
+                name="activityLevel"
+                value={formData.activityLevel}
+                onChange={handleChange}
+                className="form-field"
+              >
+                <option value="">Select level</option>
+                <option value="sedentary">Sedentary</option>
+                <option value="light">Light</option>
+                <option value="moderate">Moderate</option>
+                <option value="active">Active</option>
+                <option value="very-active">Very active</option>
+              </select>
+            </label>
+          </div>
+        </section>
 
         <button
           type="submit"
           disabled={submitting}
-          className="btn-primary mt-6"
+          className="btn-primary"
         >
-          {submitting ? 'Saving...' : 'Save Profile'}
+          {submitting ? 'Saving...' : 'Save changes'}
         </button>
       </form>
-
     </section>
   );
 }
