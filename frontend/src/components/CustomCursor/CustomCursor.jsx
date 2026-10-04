@@ -38,7 +38,7 @@ function CustomCursor() {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
-    const finePointerQuery = window.matchMedia('(pointer: fine) and (hover: hover)');
+    const finePointerQuery = window.matchMedia('(min-width: 1024px) and (pointer: fine) and (hover: hover)');
     const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     let mounted = true;
 

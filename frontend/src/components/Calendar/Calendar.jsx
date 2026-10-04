@@ -70,7 +70,7 @@ function Calendar({ monthDate, selectedDate, workoutsByDate = {}, onDateSelect, 
       <div className="grid grid-cols-7">
         {days.map((day, index) => {
           if (!day) {
-            return <div key={`empty-${index}`} className="min-h-24 border-b border-stone-900 p-2" aria-hidden="true" />;
+            return <div key={`empty-${index}`} className="min-h-16 border-b border-stone-900 p-2 sm:min-h-24" aria-hidden="true" />;
           }
 
           const dateKey = toDateKey(day);
@@ -82,7 +82,7 @@ function Calendar({ monthDate, selectedDate, workoutsByDate = {}, onDateSelect, 
               key={dateKey}
               type="button"
               onClick={() => onDateSelect(dateKey)}
-              className={`min-h-24 min-w-0 border-b border-stone-900 px-1 py-2 text-left transition-colors hover:bg-stone-900/40 focus:outline-none focus:ring-1 focus:ring-amber-300/40 sm:px-2 ${
+              className={`min-h-16 min-w-0 border-b border-stone-900 px-1 py-2 text-left transition-colors hover:bg-stone-900/40 sm:min-h-24 sm:px-2 ${
                 selected ? 'bg-stone-900/70' : ''
               }`}
               aria-pressed={selected}
@@ -98,7 +98,7 @@ function Calendar({ monthDate, selectedDate, workoutsByDate = {}, onDateSelect, 
                     const count = dayWorkouts.filter((workout) => workout.status === status).length;
 
                     return count > 0 ? (
-                      <div key={status} className="flex min-w-0 flex-col items-start text-[11px] capitalize text-stone-500 sm:flex-row sm:items-center sm:justify-between sm:gap-1">
+                      <div key={status} className="flex min-w-0 flex-col items-start text-xs capitalize text-stone-500 sm:flex-row sm:items-center sm:justify-between sm:gap-1">
                         <span className="hidden min-w-0 truncate sm:block" title={status}>{status}</span>
                         <span className="sm:hidden">{{ planned: 'Plan', completed: 'Done', skipped: 'Skip' }[status]}</span>
                         <span className="text-stone-300">{count}</span>

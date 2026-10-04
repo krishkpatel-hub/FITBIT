@@ -82,7 +82,7 @@ body:not(.app-light-shell) .custom-cursor__ring-visual {
   border-color: var(--cursor-ring-dark);
 }
 
-@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+@media (max-width: 1023px), (pointer: coarse), (hover: none), (prefers-reduced-motion: reduce) {
   .custom-cursor {
     display: none;
   }

@@ -7,6 +7,7 @@ import { progressService } from '../../services/progressService';
 import { workoutService } from '../../services/workoutService';
 import { trainingMaxService } from '../../services/trainingMaxService';
 import { appPaths, progressSectionPaths } from '../../utils/navigation';
+import { getUserFacingError } from '../../utils/apiError';
 import TrainStart from '../../components/TrainStart/TrainStart.jsx';
 import { createWorkoutDraft, WORKOUT_DRAFT_STORAGE_KEY } from '../../utils/templateWorkflow';
 
@@ -188,7 +189,7 @@ function Progress({ activeSection = 'training-history' }) {
       return 'Your session expired. Please log in again.';
     }
 
-    return err.response?.data?.message || fallbackMessage;
+    return getUserFacingError(err, fallbackMessage);
   };
 
   const loadProgressData = async () => {
@@ -223,7 +224,7 @@ function Progress({ activeSection = 'training-history' }) {
       .then((response) => { if (active) setTrainingMaxes(response.data || []); })
       .catch(async (err) => {
         if (err.response?.status === 401) await logout();
-        else if (active) setError(err.response?.data?.message || 'Unable to load strength trend.');
+        else if (active) setError(getUserFacingError(err, 'Unable to load strength trend.'));
       });
     return () => { active = false; };
   }, [activeSection, logout]);
@@ -598,7 +599,7 @@ function Progress({ activeSection = 'training-history' }) {
 
   return (
     <section className="page-stack">
-      <header className="border-b border-stone-800 pb-8">
+      <header className="page-header">
         <p className="eyebrow">{eyebrow}</p>
         <h1 ref={pageHeadingRef} tabIndex={-1} className="page-title">{activeSection === 'log-workout' && workoutEditorOpen ? 'Log Workout' : heading}</h1>
         <p className="page-copy">{activeSection === 'log-workout' && workoutEditorOpen ? 'Record this session. Changes here do not change your saved templates.' : description}</p>
@@ -608,9 +609,9 @@ function Progress({ activeSection = 'training-history' }) {
       {success && <p role="status" className="status-success">{success}</p>}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-3" aria-label="Loading training log">
+        <div className="grid gap-4 md:grid-cols-3" role="status" aria-label="Loading training log">
           {[0, 1, 2].map((item) => (
-            <div key={item} className="h-32 animate-pulse rounded-lg border border-stone-800 bg-stone-900/40" />
+            <div key={item} className="skeleton-panel h-32" />
           ))}
         </div>
       ) : (

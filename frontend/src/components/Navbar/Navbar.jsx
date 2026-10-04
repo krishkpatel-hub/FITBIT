@@ -18,6 +18,7 @@ function Navbar() {
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const accountRef = useRef(null);
   const accountButtonRef = useRef(null);
+  const menuRef = useRef(null);
   const menuButtonRef = useRef(null);
   const initials = `${user?.firstName?.[0] || user?.username?.[0] || 'A'}${user?.lastName?.[0] || ''}`.toUpperCase();
 
@@ -33,8 +34,11 @@ function Navbar() {
         else if (isMenuOpen) menuButtonRef.current?.focus();
         setIsAccountOpen(false);
         setIsMenuOpen(false);
-      } else if (event.type === 'pointerdown' && !accountRef.current?.contains(event.target)) {
-        setIsAccountOpen(false);
+      } else if (event.type === 'pointerdown') {
+        if (!accountRef.current?.contains(event.target)) setIsAccountOpen(false);
+        if (!menuRef.current?.contains(event.target) && !menuButtonRef.current?.contains(event.target)) {
+          setIsMenuOpen(false);
+        }
       }
     };
     document.addEventListener('pointerdown', dismiss);
@@ -88,7 +92,7 @@ function Navbar() {
   );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#d8d6cf] bg-[#faf9f6]/92 backdrop-blur-xl supports-[backdrop-filter]:bg-[#faf9f6]/86">
+    <header className="sticky top-0 z-30 border-b border-[#D2CFC7] bg-[#FAF9F6]">
       <nav aria-label="Primary navigation" className={`mx-auto flex max-w-[1240px] items-center justify-between py-[18px] sm:px-6 lg:px-8 ${isAuthenticated ? 'gap-3 px-4' : 'gap-4 px-5'}`}>
         <Link to={isAuthenticated ? appPaths.home : '/'} className="shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2f4f46]/40">
           <Logo tone="light" />
@@ -115,7 +119,7 @@ function Navbar() {
           <button
             ref={menuButtonRef}
             type="button"
-            className={`btn-secondary min-h-0 px-3 py-2 ${isAuthenticated ? 'lg:hidden' : 'md:hidden'}`}
+            className={`btn-secondary px-3 ${isAuthenticated ? 'lg:hidden' : 'md:hidden'}`}
             aria-expanded={isMenuOpen}
             aria-controls="mobile-navigation"
             onClick={() => { setIsMenuOpen((current) => !current); setIsAccountOpen(false); }}
@@ -133,11 +137,11 @@ function Navbar() {
                 aria-expanded={isAccountOpen}
                 aria-controls="account-navigation"
                 onClick={() => { setIsAccountOpen((current) => !current); setIsMenuOpen(false); }}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#CBCFC8] bg-[#E6E9E1] text-sm font-semibold text-[#203b33]"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-[#CBCFC8] bg-[#E6E9E1] text-sm font-semibold text-[#203b33]"
               >{initials}</button>
               {isAccountOpen && (
                 <nav id="account-navigation" aria-label="Account" className="absolute right-0 top-12 w-48 rounded-lg border border-[#D2CFC7] bg-[#FAF9F6] p-2 shadow-sm">
-                  <Link to={appPaths.profile} className="nav-link block" onClick={() => setIsAccountOpen(false)}>Profile</Link>
+                  <NavLink to={appPaths.profile} className="nav-link block w-full" onClick={() => setIsAccountOpen(false)}>Profile</NavLink>
                   <button type="button" className="nav-link w-full text-left" onClick={() => { setIsAccountOpen(false); logout(); }}>Logout</button>
                 </nav>
               )}
@@ -146,8 +150,8 @@ function Navbar() {
         </div>
       </nav>
       {isMenuOpen && (
-        <div id="mobile-navigation" className={`border-t border-[#d8d6cf] bg-[#faf9f6] px-4 py-3 ${isAuthenticated ? 'lg:hidden' : 'md:hidden'}`}>
-          <nav aria-label="Mobile primary navigation" className="mx-auto flex max-w-7xl flex-col gap-2 text-sm font-medium">
+        <div ref={menuRef} id="mobile-navigation" className={`max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-[#D2CFC7] bg-[#FAF9F6] px-4 py-3 ${isAuthenticated ? 'lg:hidden' : 'md:hidden'}`}>
+          <nav aria-label="Mobile primary navigation" className="mx-auto flex max-w-7xl flex-col gap-1 text-sm font-medium">
             {isAuthenticated
               ? appNavigationLinks.map((link) => (
                   <NavLink
@@ -157,8 +161,8 @@ function Navbar() {
                     onClick={() => setIsMenuOpen(false)}
                     className={({ isActive }) =>
                       isActive
-                        ? activeNavLinkClass
-                        : navLinkClass
+                        ? `${activeNavLinkClass} w-full`
+                        : `${navLinkClass} w-full`
                     }
                   >
                     {link.label}

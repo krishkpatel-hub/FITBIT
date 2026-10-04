@@ -6,6 +6,7 @@ import { dashboardService } from '../../services/dashboardService';
 import { demoService } from '../../services/demoService';
 import { trainingMaxService } from '../../services/trainingMaxService';
 import { appPaths } from '../../utils/navigation';
+import { getUserFacingError } from '../../utils/apiError';
 import { formatHomeDate, getHomeTrainingState, getHomeWorkoutSummary } from '../../utils/homeTraining';
 
 function Dashboard() {
@@ -51,7 +52,7 @@ function Dashboard() {
       await loadDashboard();
     } catch (err) {
       if (err.response?.status === 401) await logout();
-      else setError(err.response?.data?.message || 'Unable to create demo data.');
+      else setError(getUserFacingError(err, 'Unable to create demo data.'));
     } finally {
       setSeeding(false);
     }
@@ -84,7 +85,7 @@ function Dashboard() {
     <section className="page-stack">
       <header>
         <p className="eyebrow text-[#62675f]">Home</p>
-        <h1 className="mt-2 break-words text-3xl font-semibold leading-tight sm:text-4xl">Welcome{user?.firstName ? `, ${user.firstName}` : ' back'}.</h1>
+        <h1 className="page-title break-words">Welcome{user?.firstName ? `, ${user.firstName}` : ' back'}.</h1>
       </header>
 
       {error && <div role="alert" className="status-error">{error} <button type="button" onClick={() => { setLoading(true); loadDashboard(); }} className="ml-2 inline-flex min-h-11 items-center underline">Retry</button></div>}

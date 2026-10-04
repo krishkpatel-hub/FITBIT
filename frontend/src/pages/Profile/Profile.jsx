@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { getUserFacingError } from '../../utils/apiError';
 
 const profileFields = {
   firstName: '',
@@ -201,7 +202,7 @@ function Profile() {
       await updateProfile(buildProfilePayload());
       setSuccess('Profile updated successfully.');
     } catch (err) {
-      setError(err.response?.data?.message || 'Unable to update profile.');
+      setError(getUserFacingError(err, 'Unable to update profile.'));
     } finally {
       setSubmitting(false);
     }
@@ -220,7 +221,7 @@ function Profile() {
         {success && <p role="status" className="status-success">{success}</p>}
 
         <section aria-labelledby="profile-personal" className="border-b border-[#D2CFC7] pb-8">
-          <h2 id="profile-personal" className="text-xl font-semibold text-[#151714]">Personal</h2>
+          <h2 id="profile-personal" className="section-title">Personal</h2>
           <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
             <label className="block">
               <span className="text-sm font-medium">First name</span>
@@ -242,7 +243,7 @@ function Profile() {
         </section>
 
         <section aria-labelledby="profile-body" className="border-b border-[#D2CFC7] pb-8">
-          <h2 id="profile-body" className="text-xl font-semibold text-[#151714]">Body</h2>
+          <h2 id="profile-body" className="section-title">Body</h2>
           <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
             <label className="block">
               <span className="text-sm font-medium">Age</span>
@@ -345,7 +346,7 @@ function Profile() {
         </section>
 
         <section aria-labelledby="profile-preferences">
-          <h2 id="profile-preferences" className="text-xl font-semibold text-[#151714]">Training Preferences</h2>
+          <h2 id="profile-preferences" className="section-title">Training Preferences</h2>
           <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
             <label className="block">
               <span className="text-sm font-medium">Fitness goal</span>

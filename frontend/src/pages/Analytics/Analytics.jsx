@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import {
   Bar,
   BarChart,
@@ -15,6 +15,8 @@ import {
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { analyticsService } from '../../services/analyticsService';
+import { getUserFacingError } from '../../utils/apiError';
+import { appPaths } from '../../utils/navigation';
 
 const liftLabels = {
   squat: 'Squat',
@@ -339,7 +341,7 @@ function Analytics() {
         return;
       }
 
-      setError(err.response?.data?.message || 'Unable to load analytics.');
+      setError(getUserFacingError(err, 'Unable to load analytics.'));
     } finally {
       setLoading(false);
     }
@@ -380,13 +382,8 @@ function Analytics() {
   const selectedFilterLabel = filterOptions.find((option) => option.value === filter)?.label || 'Last 3 months';
 
   return (
-    <motion.section
-      className="page-stack"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: 'easeOut' }}
-    >
-      <header className="flex flex-wrap items-start justify-between gap-6 border-b border-stone-800 pb-8">
+    <section className="page-stack">
+      <header className="page-header flex flex-wrap items-start justify-between gap-6">
         <div>
           <p className="eyebrow">Progress / Analytics</p>
           <h1 className="page-title">Training Insights</h1>
@@ -407,14 +404,24 @@ function Analytics() {
         </label>
       </header>
 
-      {error && <p className="status-error">{error}</p>}
+      {error && <p role="alert" className="status-error">{error}</p>}
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2" aria-label="Loading analytics">
+        <div className="grid gap-4 sm:grid-cols-2" role="status" aria-label="Loading analytics">
           {[0, 1].map((item) => (
-            <div key={item} className="h-24 animate-pulse rounded-lg border border-[#D2CFC7] bg-[#FAF9F6]" />
+            <div key={item} className="skeleton-panel h-24" />
           ))}
         </div>
+      ) : analyticsData.workouts.length === 0 && analyticsData.progressLogs.length === 0 &&
+        analyticsData.trainingMaxes.length === 0 && analyticsData.prs.length === 0 ? (
+        <section className="border-y border-[#D2CFC7] py-8">
+          <h2 className="section-title">No training insights yet.</h2>
+          <p className="section-copy">Set up your program or log a workout to start seeing strength and consistency trends.</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link to={appPaths.program} className="btn-primary">Set Up Program</Link>
+            <Link to={appPaths.train} className="btn-secondary">Start Workout</Link>
+          </div>
+        </section>
       ) : (
         <>
           <section aria-label="At a glance" className="space-y-4">
@@ -479,7 +486,7 @@ function Analytics() {
           </section>
         </>
       )}
-    </motion.section>
+    </section>
   );
 }
 

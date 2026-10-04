@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { templateService } from '../../services/templateService';
 import { appPaths } from '../../utils/navigation';
+import { getUserFacingError } from '../../utils/apiError';
 import {
   createWorkoutDraft, emptyExercise, emptyTemplate, normalizeTemplatePayload,
   getTemplateMuscleGroups, starterTemplates, toTemplateForm, validateTemplate, WORKOUT_DRAFT_STORAGE_KEY,
@@ -33,7 +34,7 @@ function Templates() {
       await logout();
       return 'Your session expired. Please log in again.';
     }
-    return err.response?.data?.message || fallback;
+    return getUserFacingError(err, fallback);
   };
 
   const loadTemplates = async () => {

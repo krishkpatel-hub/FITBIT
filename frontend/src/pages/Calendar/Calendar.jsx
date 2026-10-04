@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import CalendarGrid from '../../components/Calendar/Calendar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { workoutService } from '../../services/workoutService';
 import { appPaths } from '../../utils/navigation';
+import { getUserFacingError } from '../../utils/apiError';
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -116,7 +116,7 @@ function CalendarPage() {
       return 'Your session expired. Please log in again.';
     }
 
-    return err.response?.data?.message || fallbackMessage;
+    return getUserFacingError(err, fallbackMessage);
   };
 
   const loadWorkouts = async () => {
@@ -224,20 +224,15 @@ function CalendarPage() {
   };
 
   return (
-    <motion.section
-      className="page-stack"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: 'easeOut' }}
-    >
-      <header className="border-b border-stone-800 pb-8">
+    <section className="page-stack">
+      <header className="page-header">
         <p className="eyebrow">Training History</p>
         <h1 className="page-title">Workout Calendar</h1>
         <p className="page-copy">Review past sessions, inspect daily training, and duplicate proven workouts into future plans.</p>
       </header>
 
-      {error && <p className="status-error">{error}</p>}
-      {success && <p className="status-success">{success}</p>}
+      {error && <p role="alert" className="status-error">{error}</p>}
+      {success && <p role="status" className="status-success">{success}</p>}
 
       <section className="quiet-card" aria-labelledby="calendar-filters-heading">
         <h2 id="calendar-filters-heading" className="section-title">
@@ -284,9 +279,9 @@ function CalendarPage() {
       </section>
 
       {loading ? (
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]" aria-label="Loading workout calendar">
-          <div className="h-96 animate-pulse rounded-lg border border-stone-800 bg-stone-900/40" />
-          <div className="h-96 animate-pulse rounded-lg border border-stone-800 bg-stone-900/40" />
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]" role="status" aria-label="Loading workout calendar">
+          <div className="skeleton-panel h-96" />
+          <div className="skeleton-panel h-96" />
         </div>
       ) : workouts.length === 0 ? (
         <div className="border-y border-[#D2CFC7] py-8">
@@ -386,7 +381,7 @@ function CalendarPage() {
           </form>
         </section>
       )}
-    </motion.section>
+    </section>
   );
 }
 

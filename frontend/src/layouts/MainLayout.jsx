@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar/Navbar.jsx';
 import Footer from '../components/Footer/Footer.jsx';
@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 function MainLayout() {
   const { isAuthenticated } = useAuth();
   const { pathname } = useLocation();
+  const reduceMotion = useReducedMotion();
   const isPublicLandingPage = !isAuthenticated && pathname === '/';
 
   useEffect(() => {
@@ -28,9 +29,9 @@ function MainLayout() {
       <CustomCursor />
       <Navbar />
       <motion.main
-        initial={{ opacity: 0, y: 8 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18, ease: 'easeOut' }}
+        transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeOut' }}
         className={`relative z-10 mx-auto w-full flex-1 ${
           isPublicLandingPage
             ? 'max-w-none px-0 py-0'

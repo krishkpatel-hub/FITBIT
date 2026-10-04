@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useRealtime } from '../../context/RealtimeContext.jsx';
 import { trainingMaxService } from '../../services/trainingMaxService';
 import { workoutService } from '../../services/workoutService';
 import { appPaths } from '../../utils/navigation';
+import { getUserFacingError } from '../../utils/apiError';
 
 const lifts = [
   { key: 'squat', label: 'Squat' },
@@ -184,7 +184,7 @@ function StrengthProgram() {
       return 'Your session expired. Please log in again.';
     }
 
-    return err.response?.data?.message || fallbackMessage;
+    return getUserFacingError(err, fallbackMessage);
   };
 
   const loadTrainingMaxes = async ({ quiet = false } = {}) => {
@@ -509,17 +509,12 @@ function StrengthProgram() {
   };
 
   return (
-    <motion.section
-      className="page-stack min-w-0"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: 'easeOut' }}
-    >
-      <header className="border-b border-stone-800 pb-8">
+    <section className="page-stack min-w-0">
+      <header className="page-header">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0">
             <p className="eyebrow">Current Block</p>
-            <h1 className="mt-2 text-3xl font-semibold leading-tight text-stone-50 sm:text-4xl">Strength Program</h1>
+            <h1 className="page-title">Strength Program</h1>
             <p className="page-copy">
               Week {currentWeek} of 4 · Last updated {formatDate(latestUpdatedAt)}
             </p>
@@ -535,20 +530,20 @@ function StrengthProgram() {
       </header>
 
       {error && (
-        <motion.p role="alert" className="status-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <p role="alert" className="status-error">
           {error}
-        </motion.p>
+        </p>
       )}
       {success && (
-        <motion.p role="status" className="status-success" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <p role="status" className="status-success">
           {success}
-        </motion.p>
+        </p>
       )}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-4" aria-label="Loading strength program">
+        <div className="grid gap-4 md:grid-cols-4" role="status" aria-label="Loading strength program">
           {lifts.map((lift) => (
-            <div key={lift.key} className="h-36 animate-pulse rounded-lg border border-stone-800 bg-stone-900/40" />
+            <div key={lift.key} className="skeleton-panel h-36" />
           ))}
         </div>
       ) : (
@@ -957,7 +952,7 @@ function StrengthProgram() {
           </section>
         </>
       )}
-    </motion.section>
+    </section>
   );
 }
 
