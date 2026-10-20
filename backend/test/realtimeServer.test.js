@@ -4,15 +4,15 @@ import http from 'http';
 import { WebSocket } from 'ws';
 import { createRealtimeServer } from '../src/realtime/realtimeServer.js';
 
-const createTestRealtimeServer = async () => {
+const createTestRealtimeServer = async (verifyToken = async (token) => {
+  if (token === 'token-a') return 'user-a';
+  if (token === 'token-b') return 'user-b';
+  throw new Error('Invalid token');
+}) => {
   const server = http.createServer();
   const realtime = createRealtimeServer({
     server,
-    verifyToken: async (token) => {
-      if (token === 'token-a') return 'user-a';
-      if (token === 'token-b') return 'user-b';
-      throw new Error('Invalid token');
-    },
+    verifyToken,
   });
 
   await new Promise((resolve) => server.listen(0, resolve));
@@ -190,6 +190,47 @@ test('Realtime server handles duplicate connections, disconnect, and reconnect c
 
     assert.equal(testServer.realtime.getConnectionCount('user-a'), 1);
     reconnected.close();
+  } finally {
+    await testServer.close();
+  }
+});
+
+test('Realtime server does not register a socket closed during authentication', async () => {
+  let resolveVerification;
+  let verificationStarted;
+  const started = new Promise((resolve) => { verificationStarted = resolve; });
+  const testServer = await createTestRealtimeServer(async () => {
+    verificationStarted();
+    return new Promise((resolve) => { resolveVerification = resolve; });
+  });
+
+  try {
+    const socket = new WebSocket(testServer.url);
+    await new Promise((resolve) => socket.addEventListener('open', resolve, { once: true }));
+    socket.send(JSON.stringify({ type: 'authenticate', token: 'token-a' }));
+    await started;
+    socket.close();
+    await waitForClose(socket);
+    resolveVerification('user-a');
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(testServer.realtime.getConnectionCount('user-a'), 0);
+  } finally {
+    await testServer.close();
+  }
+});
+
+test('Realtime server rejects oversized messages without crashing', async () => {
+  const testServer = await createTestRealtimeServer();
+
+  try {
+    const socket = new WebSocket(testServer.url);
+    await new Promise((resolve) => socket.addEventListener('open', resolve, { once: true }));
+    socket.send('x'.repeat(9000));
+    const closeEvent = await waitForClose(socket);
+
+    assert.notEqual(closeEvent.code, 1000);
+    assert.equal(testServer.realtime.getConnectionCount('user-a'), 0);
   } finally {
     await testServer.close();
   }

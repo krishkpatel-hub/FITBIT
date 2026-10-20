@@ -241,6 +241,15 @@ test('Coach tools only return data for the authenticated user', async () => {
   }
 });
 
+test('Coach tools reject non-object JSON and incorrectly typed limits before reading data', async () => {
+  let reads = 0;
+  const executeTool = createCoachToolExecutor({ ...createMockDataServices(), getRecentCompletedWorkouts: async () => { reads += 1; return []; } });
+  for (const args of ['null', '[]', 'true', '4', '"hello"', { limit: 0 }, { limit: '5' }, { limit: 1.5 }, { exercise: {} }]) {
+    await assert.rejects(() => executeTool({ name: 'get_recent_workouts', args, authenticatedUserId: userA }));
+  }
+  assert.equal(reads, 0);
+});
+
 test('Coach tools return empty results safely when history is missing', async () => {
   const executeTool = createCoachToolExecutor({
     getTrainingMaxes: async () => [],

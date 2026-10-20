@@ -10,12 +10,12 @@ export const errorHandler = (err, req, res, next) => {
   const logPayload = {
     statusCode,
     method: req.method,
-    path: req.originalUrl,
-    message: err.message,
+    route: req.route?.path || 'unmatched',
+    errorType: err.name,
   };
 
   if (statusCode >= 500) {
-    console.error('Server error:', { ...logPayload, stack: err.stack });
+    console.error('Server error:', isProduction ? logPayload : { ...logPayload, stack: err.stack });
   } else {
     console.warn('Request error:', logPayload);
   }

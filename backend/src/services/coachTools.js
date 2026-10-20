@@ -95,20 +95,11 @@ const assertNoExtraArgs = (args, allowedKeys, toolName) => {
 };
 
 const parseArgs = (rawArgs, toolName) => {
-  if (!rawArgs) return {};
-
-  if (typeof rawArgs === 'string') {
-    try {
-      return JSON.parse(rawArgs);
-    } catch {
-      const error = new Error(`${toolName} received malformed arguments`);
-      error.statusCode = 400;
-      throw error;
-    }
-  }
-
-  if (typeof rawArgs === 'object' && !Array.isArray(rawArgs)) {
-    return rawArgs;
+  try {
+    const parsed = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  } catch {
+    // Reject invalid JSON before dispatching to any data service.
   }
 
   const error = new Error(`${toolName} received malformed arguments`);
@@ -121,7 +112,7 @@ const validateLimit = (value = DEFAULT_LIMIT) => {
     return DEFAULT_LIMIT;
   }
 
-  const limit = Number(value);
+  const limit = value;
 
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_RECENT_WORKOUTS) {
     const error = new Error(`limit must be an integer between 1 and ${MAX_RECENT_WORKOUTS}`);
@@ -137,7 +128,7 @@ const validateWeeks = (value) => {
     return 8;
   }
 
-  const weeks = Number(value);
+  const weeks = value;
 
   if (!Number.isInteger(weeks) || weeks < 1 || weeks > MAX_HISTORY_WEEKS) {
     const error = new Error(`weeks must be an integer between 1 and ${MAX_HISTORY_WEEKS}`);
@@ -276,7 +267,12 @@ export const createCoachToolExecutor = (dataServices = defaultDataServices) => a
 
     case 'get_recent_workouts': {
       assertNoExtraArgs(parsedArgs, ['limit', 'exercise'], name);
-      const limit = validateLimit(parsedArgs.limit || DEFAULT_LIMIT);
+      const limit = validateLimit(parsedArgs.limit);
+      if (parsedArgs.exercise != null && (typeof parsedArgs.exercise !== 'string' || !parsedArgs.exercise.trim() || parsedArgs.exercise.length > 60)) {
+        const error = new Error('exercise must be a string between 1 and 60 characters');
+        error.statusCode = 400;
+        throw error;
+      }
       const workouts = await toPlainArray(
         dataServices.getRecentCompletedWorkouts(authenticatedUserId, parsedArgs.exercise ? 50 : limit),
       );
@@ -366,7 +362,12 @@ export const createCoachToolExecutor = (dataServices = defaultDataServices) => a
               maxesEntered: Boolean(programWeek.maxesEntered),
               generatedAt: isoDate(programWeek.generatedAt),
               completedAt: isoDate(programWeek.completedAt),
-              maxes: programWeek.maxes || {},
+              maxes: Object.fromEntries(['squat', 'bench', 'deadlift', 'overhead_press']
+                .filter((lift) => programWeek.maxes?.[lift])
+                .map((lift) => [lift, {
+                  oneRepMax: Number(programWeek.maxes[lift].oneRepMax || 0),
+                  trainingMax: Number(programWeek.maxes[lift].trainingMax || 0),
+                }])),
               workouts: (programWeek.workouts || []).map(compactWorkout),
             }
           : null,

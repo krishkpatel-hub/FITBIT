@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { COACH_SYSTEM_PROMPT } from './coachPrompt.js';
 import { coachToolDefinitions, executeCoachTool } from './coachTools.js';
+import { createCoachDiagnostics } from '../utils/coachDiagnostics.js';
 
 const DEFAULT_MODEL = 'gpt-4.1-mini';
 const MAX_TOOL_ROUNDS = 5;
@@ -17,11 +18,12 @@ const createCoachError = (message, statusCode = 502) => {
 
 const getOpenAIClient = () => {
   if (!process.env.OPENAI_API_KEY) {
+    createCoachDiagnostics(process.env.OPENAI_MODEL || DEFAULT_MODEL).fail({ code: 'missing_api_key', statusCode: 503 });
     throw createCoachError("I couldn't generate a coaching response right now. Please try again.", 503);
   }
 
   if (!openAIClient) {
-    openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, maxRetries: 0 });
   }
 
   return openAIClient;
@@ -40,7 +42,7 @@ const normalizeCoachFailure = (error) => {
     return createCoachError('The coach is receiving too many requests. Please try again shortly.', 429);
   }
 
-  if (error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
+  if (error.name === 'TimeoutError' || error.name === 'APIConnectionTimeoutError' || error.code === 'ETIMEDOUT') {
     return createCoachError('The coach took too long to respond. Please try again.', 504);
   }
 
@@ -63,10 +65,6 @@ const normalizeAnswer = (response) => {
     .trim();
 
   return messageText;
-};
-
-const logCoachEvent = (message, payload = {}) => {
-  console.info(`Coach: ${message}`, payload);
 };
 
 const buildInitialResponsePayload = ({ model, message, stream = false }) => ({
@@ -123,8 +121,10 @@ const consumeOpenAIStream = async (stream, onEvent) => {
       outputItems.push(event.item);
     }
 
-    if (event.type === 'response.failed') {
-      throw createCoachError('The coach could not complete the response.');
+    if (event.type === 'response.failed' || event.type === 'response.incomplete' || event.type === 'error') {
+      const error = createCoachError('The coach could not complete the response.');
+      error.code = event.response?.error?.code || event.code;
+      throw error;
     }
   }
 
@@ -146,20 +146,22 @@ export const createCoachAgent = ({
 } = {}) => {
   const openai = client || getOpenAIClient();
 
-  return async ({ authenticatedUserId, message }) => {
-    const startedAt = Date.now();
+  return async ({ authenticatedUserId, message, signal = AbortSignal.timeout(65000) }) => {
+    const diagnostics = createCoachDiagnostics(model);
     const sources = new Set();
     let response;
 
-    logCoachEvent('request started', { userId: String(authenticatedUserId), model });
+    diagnostics.stage('provider_initial');
 
     try {
+      signal.throwIfAborted();
       response = await openai.responses.create(
         buildInitialResponsePayload({ model, message }),
-        { timeout: OPENAI_TIMEOUT_MS },
+        { timeout: OPENAI_TIMEOUT_MS, signal },
       );
 
-      for (let round = 1; round <= MAX_TOOL_ROUNDS; round += 1) {
+      for (let round = 1; round <= MAX_TOOL_ROUNDS + 1; round += 1) {
+        signal.throwIfAborted();
         const toolCalls = getFunctionCalls(response);
 
         if (toolCalls.length === 0) {
@@ -169,11 +171,7 @@ export const createCoachAgent = ({
             throw createCoachError('The coach returned an empty response.');
           }
 
-          logCoachEvent('request completed', {
-            userId: String(authenticatedUserId),
-            rounds: round - 1,
-            durationMs: Date.now() - startedAt,
-          });
+          diagnostics.complete({ rounds: round - 1 });
 
           return {
             answer,
@@ -181,10 +179,12 @@ export const createCoachAgent = ({
           };
         }
 
+        if (round > MAX_TOOL_ROUNDS) break;
         const toolOutputs = [];
 
         for (const toolCall of toolCalls) {
-          const toolStartedAt = Date.now();
+          signal.throwIfAborted();
+          diagnostics.stage('tool', { tool: coachToolDefinitions.find((tool) => tool.name === toolCall.name)?.name || 'unknown' });
           const toolResult = await executeTool({
             name: toolCall.name,
             args: toolCall.arguments || '{}',
@@ -192,11 +192,7 @@ export const createCoachAgent = ({
           });
 
           sources.add(toolCall.name);
-          logCoachEvent('tool executed', {
-            userId: String(authenticatedUserId),
-            tool: toolCall.name,
-            durationMs: Date.now() - toolStartedAt,
-          });
+          diagnostics.complete();
 
           toolOutputs.push({
             type: 'function_call_output',
@@ -205,21 +201,18 @@ export const createCoachAgent = ({
           });
         }
 
+        diagnostics.stage('provider_followup');
         response = await openai.responses.create(
           buildToolResponsePayload({ model, previousResponseId: response.id, toolOutputs }),
-          { timeout: OPENAI_TIMEOUT_MS },
+          { timeout: OPENAI_TIMEOUT_MS, signal },
         );
       }
 
       throw createCoachError('The coach needed too many tool calls to answer safely.', 422);
     } catch (error) {
-      logCoachEvent('request failed', {
-        userId: String(authenticatedUserId),
-        durationMs: Date.now() - startedAt,
-        message: error.message,
-      });
+      diagnostics.fail(error);
 
-      throw normalizeCoachFailure(error);
+      throw normalizeCoachFailure(signal.aborted ? signal.reason : error);
     }
   };
 };
@@ -234,24 +227,25 @@ export const createStreamingCoachAgent = ({
   const openai = client || getOpenAIClient();
 
   return async ({ authenticatedUserId, message, onEvent, signal }) => {
-    const startedAt = Date.now();
+    const diagnostics = createCoachDiagnostics(model);
     const sources = new Set();
     let response;
 
-    logCoachEvent('stream started', { userId: String(authenticatedUserId), model });
+    diagnostics.stage('stream');
 
     try {
       await onEvent({ type: 'status', message: 'Reviewing your training...' });
 
-      for (let round = 1; round <= MAX_TOOL_ROUNDS; round += 1) {
-        const shouldStreamFinal = round === MAX_TOOL_ROUNDS || sources.size > 0;
+      for (let round = 1; round <= MAX_TOOL_ROUNDS + 1; round += 1) {
+        signal?.throwIfAborted();
+        diagnostics.stage(response ? 'provider_followup' : 'provider_initial');
         const stream = await openai.responses.create(
           response
             ? buildToolResponsePayload({
                 model,
                 previousResponseId: response.id,
                 toolOutputs: response.toolOutputs,
-                stream: shouldStreamFinal,
+                stream: true,
               })
             : buildInitialResponsePayload({ model, message, stream: true }),
           { timeout: OPENAI_TIMEOUT_MS, signal },
@@ -272,21 +266,19 @@ export const createStreamingCoachAgent = ({
           }
 
           await onEvent({ type: 'complete', sources: [...sources] });
-          logCoachEvent('stream completed', {
-            userId: String(authenticatedUserId),
-            rounds: round - 1,
-            durationMs: Date.now() - startedAt,
-          });
+          diagnostics.complete({ rounds: round - 1 });
           return {
             answer: streamResult.streamedText,
             sources: [...sources],
           };
         }
 
+        if (round > MAX_TOOL_ROUNDS) break;
         const toolOutputs = [];
 
         for (const toolCall of toolCalls) {
-          const toolStartedAt = Date.now();
+          signal?.throwIfAborted();
+          diagnostics.stage('tool', { tool: coachToolDefinitions.find((tool) => tool.name === toolCall.name)?.name || 'unknown' });
           await onEvent({ type: 'status', message: friendlyStatusForTool(toolCall.name) });
 
           const toolResult = await executeTool({
@@ -296,11 +288,7 @@ export const createStreamingCoachAgent = ({
           });
 
           sources.add(toolCall.name);
-          logCoachEvent('stream tool executed', {
-            userId: String(authenticatedUserId),
-            tool: toolCall.name,
-            durationMs: Date.now() - toolStartedAt,
-          });
+          diagnostics.complete();
 
           toolOutputs.push({
             type: 'function_call_output',
@@ -318,13 +306,12 @@ export const createStreamingCoachAgent = ({
 
       throw createCoachError('The coach needed too many tool calls to answer safely.', 422);
     } catch (error) {
-      logCoachEvent('stream failed', {
-        userId: String(authenticatedUserId),
-        durationMs: Date.now() - startedAt,
-        message: error.message,
-      });
+      diagnostics.fail(error);
 
-      if (error.name === 'AbortError') {
+      if (signal?.reason?.name === 'TimeoutError') {
+        throw createCoachError('The coach took too long to respond. Please try again.', 504);
+      }
+      if (signal?.aborted || error.name === 'AbortError' || error.name === 'APIUserAbortError') {
         throw createCoachError('Coach response was cancelled.', 499);
       }
 

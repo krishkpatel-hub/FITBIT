@@ -1,6 +1,6 @@
 # Security Report
 
-Date: 2026-07-28
+Original audit: 2026-07-28. Production-readiness recheck: 2026-10-04.
 
 Scope: full repository audit for GetJackedCoach before production deployment.
 
@@ -8,7 +8,26 @@ Scope: full repository audit for GetJackedCoach before production deployment.
 
 The current source tree does not contain tracked `.env` files or hardcoded production secrets. The backend includes security headers, response compression, CORS allowlisting, request body limits, NoSQL sanitization, auth rate limiting, configurable JWT expiration, and production-safe 500 error responses.
 
-Dependency audits report zero high-severity vulnerabilities for both frontend and backend after this review. The frontend still reports moderate React Router advisories that should be handled with a planned router upgrade.
+The validation results below describe the original July audit. For the current
+lockfiles, see the October recheck. The full dependency audit is not clean.
+
+## Production-Readiness Recheck (2026-10-04)
+
+- Compatible lockfile updates resolved production advisories in Axios, multer,
+  qs, ip-address, express, and brace-expansion without force-upgrading majors.
+- `npm audit --omit=dev --audit-level=high` reports zero vulnerabilities in
+  both frontend and backend. The root package audit is also clean.
+- Full audits still fail at high severity: five frontend and three backend
+  package findings trace to an unpatched `braces` advisory in the Tailwind 3
+  and nodemon development dependency chains. The CI high-severity gate remains
+  enabled. Do not use `npm audit fix --force` to mask a breaking toolchain change.
+- Current tracked source contains no MongoDB URI, JWT secret, or API key from
+  the scanned patterns. Historical credential exposure and the rotation steps
+  below remain outstanding until verified by the deployment owner.
+- Lint, typecheck, 69 tests, and both builds pass. Docker Compose parses, but
+  the Docker daemon was unavailable, so the production image was not built.
+- The repository lint script is a targeted secret/placeholder check, not a
+  general ESLint pass. TypeScript `checkJs` is disabled in both packages.
 
 ## Issues Found And Fixes Applied
 

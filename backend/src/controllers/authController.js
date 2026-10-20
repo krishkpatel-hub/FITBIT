@@ -14,15 +14,22 @@ const normalizeUsername = (username = '') => username.trim().toLowerCase();
 const emailPattern = /^\S+@\S+\.\S+$/;
 
 const validateRequiredFields = (fields) => {
-  const missingField = Object.entries(fields).find(([, field]) => {
-    const value = field.value;
-    return value === undefined || value === null || (typeof value === 'string' ? value.trim() === '' : value === '');
-  });
-
-  if (missingField) {
-    const error = new Error(`${missingField[1].label} is required`);
-    error.statusCode = 400;
-    throw error;
+  for (const { label, value } of Object.values(fields)) {
+    if (value === undefined || value === null || value === '') {
+      const error = new Error(`${label} is required`);
+      error.statusCode = 400;
+      throw error;
+    }
+    if (typeof value !== 'string') {
+      const error = new Error(`${label} must be text`);
+      error.statusCode = 400;
+      throw error;
+    }
+    if (!value.trim()) {
+      const error = new Error(`${label} is required`);
+      error.statusCode = 400;
+      throw error;
+    }
   }
 };
 

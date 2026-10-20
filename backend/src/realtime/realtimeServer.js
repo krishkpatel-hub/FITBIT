@@ -5,6 +5,7 @@ import User from '../models/User.js';
 const AUTH_TIMEOUT_MS = 5000;
 const HEARTBEAT_INTERVAL_MS = 30000;
 const REALTIME_PATH = '/realtime';
+const MAX_MESSAGE_BYTES = 8192;
 
 let realtimeServer = null;
 
@@ -50,7 +51,7 @@ export const createRealtimeServer = ({ server, verifyToken = defaultVerifyToken 
     throw new Error('HTTP server is required for realtime setup');
   }
 
-  const wss = new WebSocketServer({ server, path: REALTIME_PATH });
+  const wss = new WebSocketServer({ server, path: REALTIME_PATH, maxPayload: MAX_MESSAGE_BYTES });
   const userConnections = new Map();
 
   const addUserConnection = (userId, socket) => {
@@ -109,6 +110,10 @@ export const createRealtimeServer = ({ server, verifyToken = defaultVerifyToken 
       socket.isAlive = true;
     });
 
+    socket.on('error', () => {
+      socket.terminate();
+    });
+
     socket.on('message', async (rawMessage) => {
       const message = parseMessage(rawMessage);
 
@@ -120,6 +125,7 @@ export const createRealtimeServer = ({ server, verifyToken = defaultVerifyToken 
 
         try {
           const userId = await verifyToken(message.token);
+          if (socket.readyState !== WebSocket.OPEN) return;
           socket.authenticatedUserId = userId;
           socket.realtimeClientId = typeof message.clientId === 'string' ? message.clientId.slice(0, 128) : null;
           clearTimeout(authTimer);
@@ -199,7 +205,7 @@ export const emitRealtimeEvent = (userId, event) => {
   try {
     realtimeServer?.emitToUser(userId, event);
   } catch (error) {
-    console.warn('Realtime event delivery failed', { message: error.message });
+    console.warn('Realtime event delivery failed', { errorType: error.name });
   }
 };
 

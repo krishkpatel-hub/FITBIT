@@ -6,7 +6,7 @@ import { attachRealtimeServer, closeRealtimeServer } from './realtime/realtimeSe
 
 const PORT = process.env.PORT || 3000;
 
-connectDB();
+await connectDB();
 
 const server = http.createServer(app);
 attachRealtimeServer(server);

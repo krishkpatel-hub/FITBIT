@@ -75,8 +75,13 @@ export const createRealtimeConnection = ({ token, onEvent, onStatus }: RealtimeC
       }
     });
 
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (event) => {
       onStatus?.('disconnected');
+      if (event.code === 1008) {
+        intentionallyClosed = true;
+        clearReconnectTimer();
+        return;
+      }
       scheduleReconnect();
     });
 

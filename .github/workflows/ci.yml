@@ -42,16 +42,19 @@ jobs:
       - name: Run tests
         run: npm run test
 
-      - name: Audit frontend dependencies
-        run: npm audit --audit-level=high
-        working-directory: frontend
-
-      - name: Audit backend dependencies
-        run: npm audit --audit-level=high
-        working-directory: backend
-
       - name: Build frontend
         run: npm run build:frontend
 
       - name: Build backend
         run: npm run build:backend
+
+      - name: Audit production dependencies
+        run: |
+          npm --prefix frontend audit --omit=dev --audit-level=high
+          npm --prefix backend audit --omit=dev --audit-level=high
+
+      - name: Audit full dependency graphs
+        run: |
+          npm --prefix frontend audit --audit-level=high || frontend_status=$?
+          npm --prefix backend audit --audit-level=high || backend_status=$?
+          exit $(( ${frontend_status:-0} || ${backend_status:-0} ))

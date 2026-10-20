@@ -9,7 +9,8 @@
     "build": "npm run typecheck && node ../scripts/check-backend-syntax.mjs",
     "dev": "nodemon",
     "start": "node src/server.js",
-    "test": "node --import tsx --test"
+    "test": "node --import tsx --test",
+    "verify:coach": "node scripts/verify-coach-provider.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

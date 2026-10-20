@@ -28,8 +28,8 @@ Current product screenshots are stored in `frontend/public/screenshots/`.
 - Responsive Tailwind CSS interface
 - Security middleware: Helmet, CORS allowlist, request body limits, NoSQL sanitization, auth rate limiting, and production-safe 500 responses
 - Vercel SPA rewrite configuration for client-side route refreshes
-- Docker Compose configuration for local containerized development
-- GitHub Actions CI for lint checks, tests, frontend build, and backend syntax build
+- Docker Compose for local development and a production backend Dockerfile
+- GitHub Actions CI for lint, typecheck, tests, dependency audits, and builds
 
 ## Key Features
 
@@ -49,9 +49,10 @@ Current product screenshots are stored in `frontend/public/screenshots/`.
 - Workout calendar and chronological training history
 - Progress log tracking for body weight, body fat, and measurements
 - Personal records center with estimated 1RM support
-- Reusable workout templates with user-controlled exercises and optional manual sets
+- Reusable exercise-only workout templates; sets are entered in workout sessions
 - Analytics dashboard for strength, volume, consistency, and PR signals
-- Smart Coach insights generated from the logged-in user's training data
+- Data-driven insights and an AI Coach with authenticated, allowlisted tool calls and HTTP response streaming
+- Authenticated, user-scoped WebSocket events that refresh workout/progress views after REST writes
 - Development-only demo seed endpoint, disabled in production
 
 ### Future Improvements
@@ -95,14 +96,16 @@ Current product screenshots are stored in `frontend/public/screenshots/`.
 
 - Frontend configuration: Vercel SPA rewrites in `frontend/vercel.json`
 - Backend configuration: Express server reads `PORT` from environment variables and exposes health endpoints
+- No AWS infrastructure or deployment is configured in the repository
 
 ### Containerisation
 
-- Docker Compose is available for local frontend/backend development
+- Docker Compose uses Node 22 for local frontend/backend development
+- `backend/Dockerfile` installs production dependencies only, runs as a non-root user, and has an HTTP liveness check
 
 ### Testing
 
-- Node.js built-in test runner for backend utility tests
+- Node.js built-in test runner for service contracts, agent/tool behavior, auth boundaries, HTTP streaming, and WebSocket events
 
 ### CI
 
@@ -135,11 +138,11 @@ React Coach UI
   -> Authenticated Express API
   -> OpenAI Responses API
   -> Typed read-only Coach tools
-  -> Existing Mongoose models and services
+  -> Shared workout/program/analytics/PR services
   -> MongoDB
 ```
 
-The LLM has no direct MongoDB access. User identity comes only from the JWT-authenticated `req.user` value, not from model-controlled tool arguments or request bodies. Coach tools are allowlisted, server-validated, read-only, and scoped to the authenticated user before any database query runs. Tool results are minimized before being sent back to the model, and the tool-call loop has a hard round limit to prevent runaway agent execution.
+The LLM has no direct MongoDB access. User identity comes only from the JWT-authenticated `req.user` value, not from model-controlled tool arguments or request bodies. Coach tools are allowlisted, server-validated, read-only, and scoped to the authenticated user before any database query runs. Tool results are minimized before being sent back to the model, and the tool-call loop has a hard round limit to prevent runaway agent execution. Coach responses can stream over authenticated HTTP; WebSockets are reserved for workout/progress invalidation events. See [ARCHITECTURE.md](ARCHITECTURE.md) for the source-of-truth and deployment boundaries.
 
 ### Database
 
@@ -160,6 +163,7 @@ GetJackedCoach/
       models/
       routes/
       services/
+      realtime/
       utils/
       app.js
       server.js
@@ -183,6 +187,7 @@ GetJackedCoach/
     vercel.json
   scripts/
   docker-compose.yml
+  ARCHITECTURE.md
   README.md
 ```
 
@@ -209,13 +214,15 @@ API groups:
 - `/api/dashboard` for dashboard summary data
 - `/api/coach/insights` for generated coach insights
 - `POST /api/coach/chat` for the LLM-powered training coach
+- `POST /api/coach/chat/stream` for its authenticated streaming response
+- `/realtime` for authenticated WebSocket workout/progress invalidation events (not a write API)
 - `/api/demo/seed` for development-only demo data
 
 ## Local Setup
 
 ### Prerequisites
 
-- Node.js 20 or newer
+- Node.js 22 or newer
 - npm
 - MongoDB Atlas database
 
@@ -281,10 +288,11 @@ Reference placeholders are available in `.env.example`, `backend/.env.example`, 
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `VITE_API_URL` | Yes | Backend base URL without `/api`. |
+| `VITE_SITE_URL` | No | Public canonical site URL; defaults to `https://getjackedcoach.com`. |
 
 ## Docker
 
-`docker-compose.yml` runs both services for local development:
+`docker-compose.yml` runs both services for local development with Node 22:
 
 ```bash
 docker compose up
@@ -292,14 +300,35 @@ docker compose up
 
 The backend service reads `backend/.env`. The frontend service runs Vite on `0.0.0.0`.
 
+For a production backend image, build from the backend directory:
+
+```bash
+docker build -t getjackedcoach-api ./backend
+```
+
+Provide `MONGO_URI`, `JWT_SECRET`, `CLIENT_URL`, `OPENAI_API_KEY`, and other needed
+variables through the deployment platform's secrets/environment configuration;
+never bake `.env` into the image. The image starts `node src/server.js`, exposes
+port 3000 by default, and checks `/api/health`. This endpoint is liveness only.
+
+The repository does **not** contain an AWS deployment. To deploy there, choose
+a runtime (for example ECS or App Runner), publish the image to an appropriate
+registry, configure HTTPS/WSS routing and environment secrets, allow database
+network access, set the exact frontend CORS origin, and add logs/alerts. A
+multi-instance rollout also needs a shared WebSocket event bus; the current
+in-memory connection map is suitable for one backend instance only.
+
 ## Testing
 
 Run all repository checks from the root:
 
 ```bash
 npm run lint
+npm run typecheck
 npm run test
 npm run build
+npm --prefix frontend audit --audit-level=high
+npm --prefix backend audit --audit-level=high
 ```
 
 Individual commands:
@@ -323,6 +352,7 @@ Implemented protections:
 - Request body size limits
 - NoSQL sanitization
 - Rate limiting on login and registration
+- Coach-specific rate limiting
 - Production-safe 500 error responses
 - `.env` and generated files ignored by Git
 
@@ -331,15 +361,22 @@ Known limitations:
 - JWTs are stored in `localStorage`, which is a practical MVP choice but weaker than an HttpOnly-cookie or refresh-token design.
 - Password reset is not implemented.
 - The security report notes that old credentials appeared in Git history and should be rotated before production use.
-- Automated tests are currently lightweight and do not cover every API route.
+- Live OpenAI provider availability must be checked with server-side credentials; mocked tests do not prove it.
+- Full dependency audits currently report an unpatched high-severity `braces` advisory in the Tailwind/nodemon development toolchain. Production-only audits are clean after compatible lockfile updates. CI retains the full high-severity audit gate rather than hiding this finding.
+- The `lint` script checks tracked files for known secrets and landing-page placeholders; it is not a full ESLint rule set. TypeScript uses `checkJs: false`, so remaining JavaScript/JSX is parsed by builds but not typechecked.
+- Automated tests cover core contracts and isolation, but not a full register-to-workout end-to-end run against a test MongoDB instance.
 
 ## Known Limitations
 
 - The GitHub repository name still references the original project name.
 - The frontend uses the configured `VITE_API_URL`; production deployments must set it correctly.
 - The backend requires a reachable MongoDB Atlas cluster.
+- There is no committed backend hosting configuration or AWS infrastructure.
+- `/api/health` checks process liveness, not database or OpenAI readiness.
+- WebSocket delivery is process-local, so horizontal scaling requires a shared event bus.
+- Observability is limited to stdout/stderr logs and the health endpoint; add centralized logs, metrics, and alerting before a production SLA.
 - Cloudinary configuration exists, but image upload workflows are not a primary documented feature.
-- Integration and end-to-end tests are not yet implemented.
+- The HTTP and WebSocket integration tests use mocked providers and in-memory fixtures; there is no full browser-to-MongoDB end-to-end suite yet.
 
 ## Future Improvements
 
@@ -349,7 +386,7 @@ Known limitations:
 - Add frontend component or route tests
 - Add a password reset flow
 - Add stronger token storage for production
-- Add automated dependency/security scanning in CI
+- Resolve the upstream `braces` advisory when a patched compatible toolchain is available; do not force a breaking Tailwind migration solely to silence audit output
 
 ## Recommended GitHub Metadata
 

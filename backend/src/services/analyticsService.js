@@ -126,7 +126,7 @@ export const getSmartCoachInsightsForUser = async (userId) => {
 };
 
 export const getCoachProgressSummary = async (userId) => {
-  const { workouts, prs, insights } = await getSmartCoachInsightsForUser(userId);
+  const { workouts, prs, progressLogs, insights } = await getSmartCoachInsightsForUser(userId);
 
   const completedWorkouts = workouts.filter((workout) => workout.status === 'completed');
   const plannedWorkouts = workouts.filter((workout) => workout.status === 'planned');

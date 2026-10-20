@@ -206,6 +206,30 @@ test('Coach agent rejects excessive tool rounds', async () => {
   );
 });
 
+test('Coach accepts the final answer after the fifth allowed tool round', async () => {
+  for (const streaming of [false, true]) {
+    const rounds = Array.from({ length: 5 }, (_, index) => ({ id: `resp_${index}`, output: [functionCall('get_current_program')] }));
+    const final = { id: 'resp_final', output: [], output_text: 'Your next session is Bench Press.' };
+    const client = createFakeClient([...rounds, final].map((response) => streaming
+      ? completedStream({ ...response, text: response.output_text || '' }) : response));
+    const createAgent = streaming ? createStreamingCoachAgent : createCoachAgent;
+    const agent = createAgent({ client, executeTool: async () => ({ result: { program: null } }) });
+    const response = await agent({ authenticatedUserId: 'user-a', message: 'What should I train next?', onEvent: async () => {} });
+    assert.equal(response.answer, 'Your next session is Bench Press.');
+    assert.equal(client.calls.length, 6);
+  }
+});
+
+test('SDK timeout and SDK cancellation errors remain controlled', async () => {
+  const timeout = Object.assign(new Error('private network details'), { name: 'APIConnectionTimeoutError' });
+  for (const createAgent of [createCoachAgent, createStreamingCoachAgent]) {
+    const agent = createAgent({ client: createFakeClient([timeout]) });
+    await assert.rejects(() => agent({ authenticatedUserId: 'user-a', message: 'test', onEvent: async () => {} }), (error) => error.statusCode === 504);
+  }
+  const cancelled = Object.assign(new Error('private cancellation details'), { name: 'APIUserAbortError' });
+  await assert.rejects(() => createStreamingCoachAgent({ client: createFakeClient([cancelled]) })({ authenticatedUserId: 'user-a', message: 'test', onEvent: async () => {} }), (error) => error.statusCode === 499);
+});
+
 test('Coach agent returns a controlled error when OpenAI fails', async () => {
   const client = createFakeClient([new Error('network unavailable')]);
   const agent = createCoachAgent({
