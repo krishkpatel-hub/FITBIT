@@ -1,442 +1,162 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { coachService } from '../../services/coachService';
-import { appPaths } from '../../utils/navigation';
-
-const priorityOrder = {
-  high: 3,
-  medium: 2,
-  low: 1,
-};
-
-const strengthTypes = new Set(['strength_progress', 'plateau_warning', 'volume_change', 'pr_milestone']);
-const consistencyTypes = new Set(['consistency', 'recovery_warning']);
-
-const formatType = (type = '') =>
-  type
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-
-const sortByPriority = (insights) =>
-  [...insights].sort((a, b) => (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0));
+import { retryCoachTurn, shouldSubmitCoachOnEnter, startCoachTurn, updateCoachTurn } from '../../utils/coachConversation';
 
 const suggestedQuestions = [
   'What should I train next?',
-  'How has my bench changed recently?',
-  'Summarize my recent training.',
-  'What is a plus set?',
+  'How has my bench changed?',
+  'Summarize my recent workouts.',
 ];
-
-const getSafeCoachErrorMessage = (err, fallback = "I couldn't generate that coaching response right now. Please try again.") => {
-  const rawMessage = err?.response?.data?.message || err?.message || '';
-
-  if (!rawMessage || /internal server error|stack trace|cast to|mongoose|mongodb|openai api key/i.test(rawMessage)) {
-    return fallback;
-  }
-
-  return rawMessage;
-};
-
-function InsightRow({ insight }) {
-  return (
-    <article className="border-t border-stone-800 py-4 first:border-t-0 first:pt-0 last:pb-0">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-stone-100">{insight.title}</p>
-          <p className="mt-1 text-sm leading-6 text-stone-400">{insight.message}</p>
-        </div>
-        <span className="rounded-md border border-stone-700 px-2 py-1 text-xs font-medium uppercase tracking-[0.16em] text-stone-400">
-          {insight.priority || 'low'}
-        </span>
-      </div>
-      <p className="mt-3 text-xs uppercase tracking-[0.16em] text-stone-600">
-        {formatType(insight.type)} · {insight.dataSource?.replace(/_/g, ' ') || 'user data'}
-      </p>
-    </article>
-  );
-}
-
-function InsightSection({ title, description, insights, emptyMessage }) {
-  return (
-    <section className="quiet-card">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="section-title">{title}</h2>
-          {description && <p className="section-copy">{description}</p>}
-        </div>
-        <span className="text-sm text-stone-500">{insights.length} insight{insights.length === 1 ? '' : 's'}</span>
-      </div>
-
-      <div className="mt-5">
-        {insights.length > 0 ? (
-          insights.map((insight) => <InsightRow key={`${insight.type}-${insight.title}-${insight.message}`} insight={insight} />)
-        ) : (
-          <p className="empty-state">{emptyMessage}</p>
-        )}
-      </div>
-    </section>
-  );
-}
 
 function Coach() {
   const { logout } = useAuth();
-  const [insights, setInsights] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [chatError, setChatError] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [streamStatus, setStreamStatus] = useState('');
   const [message, setMessage] = useState('');
-  const [conversation, setConversation] = useState([
-    {
-      role: 'coach',
-      content: 'Ask about your training, progress, or current program. I will use your logged data when it is needed.',
-      sources: [],
-    },
-  ]);
-  const streamControllerRef = useRef(null);
-  const streamCancelledRef = useRef(false);
+  const [conversation, setConversation] = useState([]);
+  const [pending, setPending] = useState(false);
+  const [failure, setFailure] = useState(null);
+  const [composerError, setComposerError] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+  const nextIdRef = useRef(1);
+  const controllerRef = useRef(null);
   const mountedRef = useRef(true);
-
-  const groupedInsights = useMemo(() => {
-    const sortedInsights = sortByPriority(insights);
-
-    return {
-      top: sortedInsights.slice(0, 3),
-      priority: sortedInsights.filter((insight) => insight.priority === 'high' || insight.priority === 'medium'),
-      strength: sortedInsights.filter((insight) => strengthTypes.has(insight.type)),
-      consistency: sortedInsights.filter((insight) => consistencyTypes.has(insight.type)),
-    };
-  }, [insights]);
+  const conversationRef = useRef(null);
+  const stickToBottomRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
-
-    const loadInsights = async () => {
-      setLoading(true);
-      setError('');
-
-      try {
-        const response = await coachService.getCoachInsights();
-        setInsights(response.data || []);
-      } catch (err) {
-        if (err.response?.status === 401) {
-          await logout();
-          return;
-        }
-
-        setError(err.response?.data?.message || 'Unable to load Smart Coach insights.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadInsights();
-
     return () => {
       mountedRef.current = false;
-      streamControllerRef.current?.abort();
+      controllerRef.current?.abort();
     };
-  }, [logout]);
+  }, []);
 
-  const updateCoachMessage = (index, updates) => {
-    if (!mountedRef.current) return;
+  useEffect(() => {
+    if (stickToBottomRef.current && conversationRef.current) {
+      conversationRef.current.scrollTop = conversationRef.current.scrollHeight;
+    }
+  }, [conversation]);
 
-    setConversation((current) =>
-      current.map((entry, entryIndex) =>
-        entryIndex === index
-          ? {
-              ...entry,
-              ...updates,
-              content:
-                typeof updates.content === 'function'
-                  ? updates.content(entry.content)
-                  : updates.content ?? entry.content,
-            }
-          : entry,
-      ),
-    );
+  const updateTurn = (id, updates) => {
+    if (mountedRef.current) setConversation((turns) => updateCoachTurn(turns, id, updates));
   };
 
-  const cancelCoachResponse = () => {
-    streamCancelledRef.current = true;
-    streamControllerRef.current?.abort();
-    setChatLoading(false);
-    setStreamStatus('');
-  };
-
-  const submitCoachMessage = async (event, suggestedMessage) => {
-    event?.preventDefault();
-
-    if (chatLoading) return;
-
-    const outgoingMessage = (suggestedMessage || message).trim();
-
-    if (!outgoingMessage) {
-      setChatError('Enter a question for Coach.');
+  const submitQuestion = async (question, retry = null) => {
+    if (controllerRef.current) return;
+    const outgoing = (retry?.question || question || '').trim();
+    if (!outgoing) {
+      setComposerError('Enter a question for Coach.');
+      return;
+    }
+    if (outgoing.length > 1000) {
+      setComposerError('Keep your question under 1,000 characters.');
       return;
     }
 
-    setChatError('');
-    setChatLoading(true);
-    setStreamStatus('Reviewing your training...');
-    setMessage('');
-    streamCancelledRef.current = false;
-
+    const coachId = retry?.coachId ?? nextIdRef.current + 1;
+    if (retry) {
+      setConversation((turns) => retryCoachTurn(turns, coachId));
+    } else {
+      const userId = nextIdRef.current;
+      nextIdRef.current += 2;
+      setConversation((turns) => startCoachTurn(turns, outgoing, userId, coachId));
+      setMessage('');
+    }
     const controller = new AbortController();
-    streamControllerRef.current = controller;
-    const coachMessageIndex = conversation.length + 1;
-
-    setConversation((current) => [
-      ...current,
-      { role: 'user', content: outgoingMessage, sources: [] },
-      {
-        role: 'coach',
-        content: '',
-        sources: [],
-        status: 'Reviewing your training...',
-        streaming: true,
-      },
-    ]);
+    controllerRef.current = controller;
+    setPending(true);
+    setFailure(null);
+    setComposerError('');
+    setAnnouncement('');
 
     try {
       await coachService.streamCoachMessage({
-        message: outgoingMessage,
+        message: outgoing,
         signal: controller.signal,
-        onEvent: (streamEvent) => {
-          if (!mountedRef.current) return;
-
-          if (streamEvent.type === 'status') {
-            setStreamStatus(streamEvent.message);
-            updateCoachMessage(coachMessageIndex, { status: streamEvent.message });
-            return;
-          }
-
-          if (streamEvent.type === 'text_delta') {
-            setStreamStatus('');
-            updateCoachMessage(coachMessageIndex, {
-              status: '',
-              content: (currentContent) => `${currentContent}${streamEvent.delta}`,
-            });
-            return;
-          }
-
-          if (streamEvent.type === 'complete') {
-            setStreamStatus('');
-            updateCoachMessage(coachMessageIndex, {
-              streaming: false,
-              status: '',
-              sources: streamEvent.sources || [],
-            });
-            return;
-          }
-
-          if (streamEvent.type === 'error') {
-            setStreamStatus('');
-            updateCoachMessage(coachMessageIndex, {
-              streaming: false,
-              status: '',
-              content: (currentContent) =>
-                currentContent || "I couldn't generate that coaching response right now. Please try again.",
-            });
-            setChatError(getSafeCoachErrorMessage({ message: streamEvent.message }));
+        onEvent: (event) => {
+          if (!mountedRef.current || controller.signal.aborted) return;
+          if (event.type === 'status') updateTurn(coachId, { status: event.message });
+          if (event.type === 'text_delta') updateTurn(coachId, { delta: event.delta, status: '' });
+          if (event.type === 'complete') {
+            updateTurn(coachId, { streaming: false, status: '' });
+            setAnnouncement('Coach response complete.');
           }
         },
       });
-    } catch (err) {
-      if (streamCancelledRef.current || err.name === 'AbortError') {
-        updateCoachMessage(coachMessageIndex, {
-          streaming: false,
-          status: '',
-          content: (currentContent) => currentContent || 'Response cancelled.',
-        });
-        return;
-      }
-
-      if (err.response?.status === 401 || err.status === 401 || err.message === 'Authentication required') {
+    } catch (error) {
+      if (!mountedRef.current) return;
+      if (error.response?.status === 401 || error.status === 401) {
         await logout();
         return;
       }
-
-      updateCoachMessage(coachMessageIndex, {
-        streaming: false,
-        status: '',
-        content: (currentContent) =>
-          currentContent || "I couldn't generate that coaching response right now. Please try again.",
-      });
-
-      if (err.response?.status === 429 || err.status === 429 || /too many/i.test(err.message)) {
-        setChatError(getSafeCoachErrorMessage(err, 'Coach is receiving too many requests. Please try again shortly.'));
-      } else if (err.response?.status === 504 || err.status === 504 || err.code === 'ECONNABORTED' || /too long|timeout|taking longer/i.test(err.message)) {
-        setChatError('Coach took too long to respond. Please try again.');
-      } else if (err instanceof TypeError) {
-        setChatError('Network connection failed. Please check your connection and try again.');
-      } else {
-        setChatError(getSafeCoachErrorMessage(err, 'Unable to reach Coach right now. Please try again.'));
-      }
+      updateTurn(coachId, { streaming: false, status: '', incomplete: true });
+      setFailure({ coachId, question: outgoing });
+      setAnnouncement(controller.signal.aborted ? 'Coach response cancelled.' : "Couldn't get a response.");
     } finally {
-      if (mountedRef.current) {
-        setChatLoading(false);
-        setStreamStatus('');
-      }
-      streamControllerRef.current = null;
+      if (controllerRef.current === controller) controllerRef.current = null;
+      if (mountedRef.current) setPending(false);
     }
   };
 
+  const submitDraft = (event) => {
+    event.preventDefault();
+    void submitQuestion(message);
+  };
+
+  const handleComposerKeyDown = (event) => {
+    if (shouldSubmitCoachOnEnter(event, window.matchMedia('(pointer: coarse)').matches)) {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  };
+
+  const trackScroll = () => {
+    const container = conversationRef.current;
+    if (!container) return;
+    stickToBottomRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+  };
+
   return (
-    <section className="page-stack">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">Smart Coach</p>
-          <h1 className="page-title">Coach Insights</h1>
-          <p className="page-copy">
-            Explainable coaching notes generated from your workouts, training maxes, PRs, and progress logs.
-          </p>
-        </div>
-        <Link to={appPaths.analytics} className="btn-secondary">
-          View Analytics
-        </Link>
+    <section className="mx-auto flex min-h-[65vh] w-full max-w-4xl flex-col gap-6">
+      <header className="border-b border-[#D2CFC7] pb-5">
+        <h1 className="page-title mt-0">Coach</h1>
+        <p className="page-copy">Ask about your workouts, progress, or program.</p>
+      </header>
+
+      <div ref={conversationRef} onScroll={trackScroll} role="log" aria-label="Coach conversation" aria-live="off" className="min-h-52 max-h-[55dvh] flex-1 space-y-6 overflow-y-auto overscroll-contain pr-1 sm:max-h-[62vh]">
+        {conversation.length === 0 ? (
+          <div className="space-y-5 py-6">
+            <h2 className="text-xl font-semibold text-[#151714]">What would you like to know about your training?</h2>
+            <div className="flex flex-wrap gap-2" aria-label="Suggested questions">
+              {suggestedQuestions.map((question) => <button key={question} type="button" className="btn-secondary text-left" disabled={pending} onClick={() => { void submitQuestion(question); }}>{question}</button>)}
+            </div>
+          </div>
+        ) : conversation.map((turn) => (
+          <article key={turn.id} className={`max-w-[min(100%,42rem)] rounded-lg px-4 py-3 sm:px-5 ${turn.role === 'user' ? 'ml-auto border border-[#D2CFC7] bg-[#E7E4DC]' : 'mr-auto border-l-2 border-[#2f4f46] bg-[#FAF9F6]'}`}>
+            <h2 className="text-sm font-semibold text-[#4F534E]">{turn.role === 'user' ? 'You' : 'Coach'}</h2>
+            {turn.content ? <p className="mt-2 whitespace-pre-wrap break-words text-base leading-7 text-[#151714]">{turn.content}</p> : <p className="mt-2 text-sm text-[#4F534E]">{turn.incomplete ? 'Response interrupted.' : turn.status || 'Reviewing your training…'}</p>}
+            {turn.incomplete && turn.content && <p className="mt-2 text-sm text-[#62675f]">Incomplete response</p>}
+            {failure?.coachId === turn.id && <div role="alert" className="mt-3 flex flex-wrap items-center gap-3 border-t border-[#D2CFC7] pt-3"><p className="text-sm text-[#8f3332]">Couldn't get a response.</p><button type="button" className="btn-secondary" disabled={pending} onClick={() => { void submitQuestion(failure.question, failure); }}>Retry</button></div>}
+          </article>
+        ))}
       </div>
 
-      <section className="quiet-card">
-        <div className="flex flex-col gap-3 border-b border-stone-800 pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="section-title">Ask Coach</h2>
-            <p className="section-copy">Ask about your training, progress, or current program.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {suggestedQuestions.map((question) => (
-              <button
-                key={question}
-                type="button"
-                className="btn-secondary text-xs"
-                disabled={chatLoading}
-                onClick={(event) => submitCoachMessage(event, question)}
-              >
-                {question}
-              </button>
-            ))}
-          </div>
-        </div>
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
 
-        <div className="mt-5 space-y-4" aria-live="polite">
-          {conversation.map((entry, index) => (
-            <article
-              key={`${entry.role}-${index}`}
-              className={entry.role === 'user' ? 'border-l border-amber-300/60 pl-4' : 'border-l border-stone-700 pl-4'}
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
-                {entry.role === 'user' ? 'You' : 'Coach'}
-              </p>
-              <p className="mt-2 whitespace-pre-line text-sm leading-6 text-stone-300">
-                {entry.content || entry.status || 'Preparing your answer...'}
-              </p>
-              {entry.sources?.length > 0 && (
-                <p className="mt-2 text-xs uppercase tracking-[0.16em] text-stone-600">
-                  Sources: {entry.sources.map((source) => source.replace(/_/g, ' ')).join(', ')}
-                </p>
-              )}
-            </article>
-          ))}
-
-          {chatLoading && streamStatus && <p className="text-sm text-stone-400">{streamStatus}</p>}
-        </div>
-
-        {chatError && (
-          <p role="alert" className="status-error mt-5">
-            {chatError}
-          </p>
-        )}
-
-        <form className="mt-5 flex flex-col gap-3 sm:flex-row" onSubmit={submitCoachMessage}>
-          <label className="sr-only" htmlFor="coach-message">
-            Ask about your training
-          </label>
-          <input
-            id="coach-message"
-            className="input-field flex-1"
-            value={message}
-            maxLength={1000}
-            placeholder="Ask about your training..."
-            disabled={chatLoading}
-            onChange={(event) => {
-              setMessage(event.target.value);
-              if (chatError) setChatError('');
-            }}
-          />
-          <button type="submit" className="btn-primary sm:w-auto" disabled={chatLoading}>
-            {chatLoading ? 'Sending...' : 'Send'}
-          </button>
-          {chatLoading && (
-            <button type="button" className="btn-secondary sm:w-auto" onClick={cancelCoachResponse}>
-              Cancel
-            </button>
-          )}
-        </form>
-      </section>
-
-      {error && (
-        <p role="alert" className="status-error">
-          {error}
-        </p>
-      )}
-
-      {loading ? (
-        <div className="grid gap-5 lg:grid-cols-3">
-          {[0, 1, 2].map((item) => (
-            <div key={item} className="quiet-card animate-pulse">
-              <div className="h-4 w-2/3 rounded bg-stone-800" />
-              <div className="mt-4 h-3 w-full rounded bg-stone-800" />
-              <div className="mt-2 h-3 w-4/5 rounded bg-stone-800" />
-            </div>
-          ))}
-        </div>
-      ) : insights.length === 0 ? (
-        <div className="empty-state">
-          Log workouts, PRs, and progress to unlock Smart Coach insights.
-        </div>
-      ) : (
-        <>
-          <section className="grid gap-5 lg:grid-cols-3">
-            {groupedInsights.top.map((insight) => (
-              <article key={`${insight.type}-${insight.title}`} className="metric-panel">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300/80">
-                  {formatType(insight.type)}
-                </p>
-                <h2 className="mt-3 text-xl font-semibold tracking-tight text-stone-50">{insight.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-stone-400">{insight.message}</p>
-              </article>
-            ))}
-          </section>
-
-          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-            <div className="space-y-6">
-              <InsightSection
-                title="Priority Insights"
-                description="The items most likely to affect the next training decision."
-                insights={groupedInsights.priority}
-                emptyMessage="No medium or high priority insights right now."
-              />
-            </div>
-
-            <div className="space-y-6">
-              <InsightSection
-                title="Strength"
-                description="Training maxes, PRs, volume changes, and plateau signals."
-                insights={groupedInsights.strength}
-                emptyMessage="Add training max history, workouts, or PRs to receive strength insights."
-              />
-              <InsightSection
-                title="Consistency and Recovery"
-                description="Workout completion, training density, and recovery pressure."
-                insights={groupedInsights.consistency}
-                emptyMessage="Plan and complete workouts to see consistency and recovery feedback."
-              />
+      <form onSubmit={submitDraft} className="border-t border-[#D2CFC7] pt-5">
+        <label htmlFor="coach-message" className="block text-sm font-semibold text-[#151714]">Ask Coach</label>
+        <div className="mt-2 rounded-lg border border-[#BDB8AD] bg-[#FAF9F6] p-2 focus-within:border-[#2f4f46] focus-within:ring-2 focus-within:ring-[#2f4f46]/15">
+          <textarea id="coach-message" rows={3} maxLength={1000} placeholder="Ask about your training…" value={message} disabled={pending} onKeyDown={handleComposerKeyDown} onChange={(event) => { setMessage(event.target.value); setComposerError(''); }} className="w-full resize-y border-0 bg-transparent px-2 py-1 text-base leading-6 text-[#151714] outline-none focus:ring-0" />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#D2CFC7] px-1 pt-2">
+            <span className="text-xs text-[#747872]">Send below, or press Enter on desktop. Shift+Enter adds a line.</span>
+            <div className="flex gap-2">
+              {pending && <button type="button" className="btn-secondary" onClick={() => controllerRef.current?.abort()}>Cancel</button>}
+              <button type="submit" className="btn-primary" disabled={pending || !message.trim()}>{pending ? 'Reviewing…' : 'Send'}</button>
             </div>
           </div>
-        </>
-      )}
+        </div>
+        {composerError && <p role="alert" className="mt-2 text-sm text-[#8f3332]">{composerError}</p>}
+      </form>
     </section>
   );
 }
