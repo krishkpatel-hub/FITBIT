@@ -52,7 +52,7 @@ export const progressSectionPaths: Record<string, string> = {
   'log-pr': appPaths.prs,
   'training-history': appPaths.history,
   'body-metrics': appPaths.body,
-  'strength-progress': appPaths.analytics,
+  'strength-progress': appPaths.overview,
 };
 
 export const legacyPaths: Record<string, string> = {

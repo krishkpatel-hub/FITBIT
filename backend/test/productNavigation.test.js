@@ -9,6 +9,7 @@ test('primary navigation has five task-oriented destinations, with utilities sep
   assert.deepEqual(sectionNavigation.Program.map((link) => link.label), ['Program', 'Calendar']);
   assert.deepEqual(sectionNavigation.Train.map((link) => link.label), ['Start Workout', 'Templates']);
   assert.deepEqual(sectionNavigation.Progress.map((link) => link.label), ['Overview', 'History', 'PRs', 'Body', 'Analytics']);
+  assert.ok(!sectionNavigation.Progress.some((link) => link.label === 'Strength Progress'));
   assert.equal(sectionNavigation.Progress[0].to, appPaths.progress);
   assert.equal(sectionNavigation.Progress[0].end, true);
   assert.equal(progressSectionPaths.overview, appPaths.progress);
@@ -23,6 +24,7 @@ test('legacy routes and Progress sections preserve their original destination', 
     assert.equal(resolveLegacyPath('/progress', `?section=${section}`), destination);
   }
   assert.equal(resolveLegacyPath('/progress', '?section=training-history&filter=bench'), `${appPaths.history}?filter=bench`);
+  assert.equal(resolveLegacyPath('/progress', '?section=strength-progress&filter=bench'), `${appPaths.overview}?filter=bench`);
   assert.equal(resolveLegacyPath('/strength-program', '?week=1'), `${appPaths.program}?week=1`);
   assert.equal(resolveLegacyPath('/progress', '?section=unknown'), appPaths.train);
 });
